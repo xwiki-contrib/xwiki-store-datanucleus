@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<jdoconfig xmlns="http://java.sun.com/xml/ns/jdo/jdoconfig"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xsi:noNamespaceSchemaLocation="http://java.sun.com/xml/ns/jdo/jdoconfig">
+
+  <!-- Datastore Txn PMF -->
+  <persistence-manager-factory name="Test">
+    <property name="javax.jdo.PersistenceManagerFactoryClass" 
+              value="org.datanucleus.jdo.JDOPersistenceManagerFactory" />
+
+    <property name="javax.jdo.option.ConnectionURL"
+              value="cassandra:TestPool:TestingKeyspace:19160:127.0.0.1" />
+
+    <property name="javax.jdo.option.Optimistic" value="false" />
+
+    <!-- auto creates keyspace and CF.
+         Not recommended for production environments since replication factor and strategy 
+         are defaulted to 1 and simple -->
+    <property name="datanucleus.autoCreateSchema" value="true" />
+
+    <property name="datanucleus.autoCreateTables" value="true" />
+
+    <property name="datanucleus.autoCreateColumns" value="true" />
+
+    <!-- no second level cache. Need to use cassandra or other distributed cache -->
+    <property name="datanucleus.cache.level2.type" value="none" />
+
+    <property name="com.spidertracks.cassandra.serializer" 
+              value="com.spidertracks.datanucleus.serialization.XStreamSerializer" />
+
+    <property name="com.spidertracks.cassandra.bytemapper" value="cassandraByteCoverters.properties" />
+
+    <property name="datanucleus.plugin.allowUserBundles" value="true" />
+
+  </persistence-manager-factory>
+</jdoconfig>
