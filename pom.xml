@@ -3,14 +3,13 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.xwiki.commons</groupId>
-    <artifactId>xwiki-commons</artifactId>
-    <version>42-SNAPSHOT</version>
+    <groupId>org.xwiki.platform</groupId>
+    <artifactId>xwiki-platform-store</artifactId>
+    <version>3.1-SNAPSHOT</version>
   </parent>
 
   <groupId>org.xwiki.store</groupId>
-  <artifactId>datanucleus-test</artifactId>
-  <version>1.0-SNAPSHOT</version>
+  <artifactId>xwiki-platform-store-datanucleus</artifactId>
   <packaging>jar</packaging>
 
   <properties>
@@ -24,14 +23,8 @@
   <dependencies>
 
     <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-    </dependency>
-
-    <dependency>
       <groupId>org.codehaus.groovy</groupId>
       <artifactId>groovy-all</artifactId>
-      <version>1.7.5</version>
     </dependency>
 
     <!--
@@ -94,6 +87,7 @@
           <mappingIncludes>**/*.jdo, **/*.class</mappingIncludes>
           <verbose>true</verbose>
           <enhancerName>ASM</enhancerName>
+          <log4jConfiguration>src/main/resources/log4j.properties</log4jConfiguration>
         </configuration>
         <executions>
           <execution>
@@ -112,37 +106,34 @@
         </dependencies>
       </plugin>
 
+      <plugin>
+        <!-- Apply the Checkstyle configurations defined in the top level pom.xml file -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <excludes>
+              <!-- This is just a dummy class for testing -->
+              **/Document.java
+          </excludes>
+        </configuration>
+      </plugin>
     </plugins>
   </build>
 
   <repositories>
-    <repository>
-      <releases>
-        <enabled>true</enabled>
-        <updatePolicy>daily</updatePolicy>
-        <checksumPolicy>fail</checksumPolicy>
-      </releases>
-      <snapshots>
-        <enabled>false</enabled>
-        <updatePolicy>daily</updatePolicy>
-        <checksumPolicy>fail</checksumPolicy>
-      </snapshots>
-      <id>eaio.com</id>
-      <name>eaio.com repository</name>
-      <url>http://eaio.com/maven2</url>
-    </repository>
 
+    <!-- DataNucleus -->
     <repository>
       <id>DN_M2_Repo</id>
       <url>http://www.datanucleus.org/downloads/maven2/</url>
     </repository>
 
-    <repository>
-      <id>riptano</id>
-      <name>riptano</name>
-      <url>http://mvn.riptano.com/content/repositories/public</url>
-    </repository>
-
+    <!--
+      * scale7 pelops, used by Datanucleus-Cassandra-Plugin.
+      * explicitly references here because spidertracks maven
+      * repo uses http://github which github redirects to https
+      * confusing maven.
+      -->
     <repository>
       <id>maven.scale7.org</id>
       <name>Scale7 Maven Repo</name>

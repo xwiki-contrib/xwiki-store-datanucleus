@@ -15,12 +15,6 @@ import org.junit.Test;
 import org.codehaus.groovy.control.Phases;
 import org.codehaus.groovy.tools.GroovyClass;
 import org.codehaus.groovy.control.CompilationUnit;
-import org.codehaus.groovy.control.CompilerConfiguration;
-import org.codehaus.groovy.tools.Compiler;
-import java.io.ByteArrayOutputStream;
-import java.io.FileInputStream;
-import java.io.File;
-import org.apache.commons.io.IOUtils;
 import javax.jdo.JDOEnhancer;
 import groovy.lang.GroovyClassLoader;
 
