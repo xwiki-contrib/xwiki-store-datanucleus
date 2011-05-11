@@ -9,7 +9,16 @@
               value="org.datanucleus.jdo.JDOPersistenceManagerFactory" />
 
     <property name="javax.jdo.option.ConnectionURL"
-              value="cassandra:TestPool:TestingKeyspace:19160:127.0.0.1" />
+              value="cassandra:TestPool:true:false:10000:TestingKeyspace:19160:127.0.0.1" />
+    <!-- cassandra
+         :poolname
+         :<true|false, framed transport>
+         :<true|false, dynamic node discovery>
+         :<timeout in ms>
+         :keyspace
+         :port
+         :host1[,hostN]
+      -->
 
     <property name="javax.jdo.option.Optimistic" value="false" />
 

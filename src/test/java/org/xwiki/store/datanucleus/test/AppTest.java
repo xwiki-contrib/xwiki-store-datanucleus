@@ -104,9 +104,12 @@ public class AppTest
           + "    @Index\n"
           + "    public String title;\n"
 
+          + "    @Index\n"
+          + "    public GroovyPersist innerDocument;\n"
+
           + "    public String toString()\n"
           + "    {\n"
-          + "        return author + ' | ' + notIndexed + ' | ' + content + ' | ' + title;\n"
+          + "        return author + ' | ' + notIndexed + ' | ' + content + ' | ' + title + ' | ' + innerDocument.toString();\n"
           + "    }\n"
           + "}\n";
 
@@ -134,23 +137,44 @@ public class AppTest
         // Create instance
         Class groovyPersistClass = loader.loadClass(gclass.getName());
         Object groovyPersist = groovyPersistClass.newInstance();
+        Object groovyPersist2 = groovyPersistClass.newInstance();
         // We can't do this in java without reflection since the class doesn't exist at compile time.
         final groovy.lang.GroovyShell gs = new groovy.lang.GroovyShell();
         gs.setVariable("groovyPersist", groovyPersist);
+        gs.setVariable("groovyPersist2", groovyPersist2);
         gs.evaluate("groovyPersist.author = 'Me';\n"
                   + "groovyPersist.notIndexed = 'Not indexed';\n"
                   + "groovyPersist.content = 'Generated persistance capable class!';\n"
-                  + "groovyPersist.title = 'GroovyClass';\n");
+                  + "groovyPersist.title = 'GroovyClass';\n"
+                  + "groovyPersist.innerDocument = groovyPersist2;\n"
+                  + "groovyPersist.innerDocument.author = 'MeMeMe';\n"
+                  + "groovyPersist.innerDocument.notIndexed = 'ni';\n"
+                  + "groovyPersist.innerDocument.content = 'I am a nested object, yay!';\n"
+                  + "groovyPersist.innerDocument.title = 'GroovyClass#2';\n");
 
         // Store
         this.manager.makePersistent(groovyPersist);
 
         // Query
+
+        // This doesn't work because JPQL is not supported (yet...)
+        /*Collection c = (Collection)
+            this.manager.newQuery("javax.jdo.query.JPQL", "SELECT doc FROM " + gclass.getName()
+                                + " as doc WHERE doc.title = 'GroovyClass'").execute();*/
+
+        // This doesn't work because querying against nested objects is not supported. (yet)
+        /*Collection c = (Collection)
+            this.manager.newQuery("SELECT FROM " + gclass.getName()
+                                  + " WHERE innerDocument.title == 'GroovyClass#2'").execute();*/
+
         Collection c = (Collection)
             this.manager.newQuery("SELECT FROM " + gclass.getName()
-                                + " WHERE title == \"GroovyClass\"").execute();
+                                  + " WHERE title == 'GroovyClass'").execute();
+
         Assert.assertEquals(c.size(), 1);
-        Assert.assertEquals("Me | Not indexed | Generated persistance capable class! | GroovyClass",
+        //System.out.println(c.iterator().next().toString());
+        Assert.assertEquals("Me | Not indexed | Generated persistance capable class! | GroovyClass | "
+                              +"MeMeMe | ni | I am a nested object, yay! | GroovyClass#2 | null",
                             c.iterator().next().toString());
     }
 
