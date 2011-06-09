@@ -21,19 +21,10 @@ package com.xpn.xwiki.doc;
 
 import java.util.Date;
 
-/*
-import com.xpn.xwiki.objects.BaseCollection;
-import com.xpn.xwiki.objects.BaseObject;
-import com.xpn.xwiki.objects.BaseProperty;
-import com.xpn.xwiki.objects.LargeStringProperty;
-import com.xpn.xwiki.objects.ListProperty;
-*/
-
 import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.PrimaryKey;
 import javax.jdo.annotations.Index;
-/*import javax.jdo.annotations.
-import javax.jdo.annotations.*/
+import javax.jdo.annotations.NotPersistent;
 
 public class PersistableXWikiDocument
 {
@@ -51,7 +42,7 @@ public class PersistableXWikiDocument
 
     private String defaultLanguage;
 
-    private String translation;
+    private int translation;
 
     private Date date;
 
