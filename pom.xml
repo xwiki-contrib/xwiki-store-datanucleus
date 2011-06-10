@@ -8,7 +8,7 @@
     <version>3.2-SNAPSHOT</version>
   </parent>
 
-  <groupId>org.xwiki.store</groupId>
+  <groupId>org.xwiki.platform</groupId>
   <artifactId>xwiki-platform-store-datanucleus</artifactId>
   <packaging>jar</packaging>
 

@@ -49,30 +49,18 @@ import org.codehaus.groovy.control.CompilationUnit;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.datanucleus.internal.JavaIdentifierEscaper;
+import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
 
 /**
  */
-public class XObjectConverter
+public final class XObjectConverter
 {
-    public Object fromXObject(final BaseObject xwikiObject)
-    {
-        return convertFromXObject(xwikiObject);
-    }
-
-    public BaseObject toXObject(final Object persistable, final BaseClass xwikiClass)
-    {
-        return convertToXObject(persistable, xwikiClass);
-    }
-
-
     /* ------------------------- Read an XObject into a persistable object. ------------------------- */
 
-    private static Object convertFromXObject(final BaseObject xwikiObject)
+    public static Object convertFromXObject(final BaseObject xwikiObject)
     {
-        final EntityReference docRef = xwikiObject.getXClassReference();
-        final EntityReference spaceRef = docRef.getParent();
-        final String className = JavaIdentifierEscaper.escape(spaceRef.getName())
-                                 + "." + JavaIdentifierEscaper.escape(docRef.getName());
+        final String className =
+            JavaClassNameDocumentReferenceSerializer.serializeRef(xwikiObject.getXClassReference(), null);
         final Class<?> objectClass;
         try {
             objectClass = Class.forName(className);
@@ -151,24 +139,18 @@ public class XObjectConverter
 
     /* ------------------------- Write a persistable object into an XObject. ------------------------- */
 
-    private static BaseObject convertToXObject(final Object persistable, final BaseClass xwikiClass)
+    public static BaseObject convertToXObject(final Object persistable, final BaseClass xwikiClass)
     {
-        final String[] splitClassName = persistable.getClass().getName().split(".");
-        final List<String> spaceNames = new ArrayList<String>();
-        final String wikiName = JavaIdentifierEscaper.unescape(splitClassName[0]);
-        final String pageName = JavaIdentifierEscaper.unescape(splitClassName[splitClassName.length - 1]);
-        for (int i = 1; i < splitClassName.length - 1; i++) {
-            spaceNames.add(JavaIdentifierEscaper.unescape(splitClassName[i]));
-        }
-        final EntityReference docRef = new DocumentReference(wikiName, spaceNames, pageName);
+        final EntityReference docRef =
+            JavaClassNameDocumentReferenceSerializer.resolveRef(persistable.getClass().getName(), null);
 
         final BaseObject out = new BaseObject();
+        out.setXClassReference(xwikiClass.getDocumentReference());
 
         final Field[] fields = persistable.getClass().getFields();
         for (final Field field : fields) {
-
-            final PropertyClass propClass =
-                (PropertyClass) xwikiClass.get(JavaIdentifierEscaper.unescape(field.getName()));
+            final String fieldName = JavaIdentifierEscaper.unescape(field.getName());
+            final PropertyClass propClass = (PropertyClass) xwikiClass.get(fieldName);
             if (propClass == null) {
                 throw new RuntimeException("The Object of type " + persistable.getClass().getName()
                                            + " contains a field " + field.getName() + " which has no "
@@ -188,6 +170,7 @@ public class XObjectConverter
                 final BaseProperty prop = propClass.newProperty();
                 checkTypeMatch(field, classForProperty(prop), prop);
                 prop.setValue(fieldValue);
+                out.safeput(fieldName, prop);
             }
         }
 
