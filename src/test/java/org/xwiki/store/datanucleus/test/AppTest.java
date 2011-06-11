@@ -69,13 +69,29 @@ public class AppTest
     @Test
     public void testSearchByContent() throws Exception
     {
-        searchDocuments("SELECT FROM org.xwiki.store.datanucleus.test.Document WHERE content == \"ContentA\"");
+        searchDocuments("SELECT FROM org.xwiki.store.datanucleus.test.Document WHERE "
+                        + "content == \"ContentA\"");
     }
 
     @Test
     public void testSearchByContentAndNonIndexed() throws Exception
     {
-        searchDocuments("SELECT FROM org.xwiki.store.datanucleus.test.Document WHERE content == \"ContentA\" && notIndexed == \"Hello\"");
+        searchDocuments("SELECT FROM org.xwiki.store.datanucleus.test.Document WHERE "
+                        + "content == \"ContentA\" && notIndexed == \"Hello\"");
+    }
+
+    @Test
+    public void testSearchByNonIndexed() throws Exception
+    {
+        searchDocuments("SELECT FROM org.xwiki.store.datanucleus.test.Document WHERE "
+                        + "notIndexed == \"Hello\"");
+    }
+
+    @Test
+    public void testSearchByTwoNonIndexed() throws Exception
+    {
+        searchDocuments("SELECT FROM org.xwiki.store.datanucleus.test.Document WHERE "
+                        + "notIndexed == \"Hello\" && alsoNotIndexed == \"Hi\"");
     }
 
     @Test
@@ -109,7 +125,8 @@ public class AppTest
 
           + "    public String toString()\n"
           + "    {\n"
-          + "        return author + ' | ' + notIndexed + ' | ' + content + ' | ' + title + ' | ' + innerDocument.toString();\n"
+          + "        return author + ' | ' + notIndexed + ' | ' + content + ' | '"
+          + "               + title + ' | ' + innerDocument.toString();\n"
           + "    }\n"
           + "}\n";
 

@@ -14,6 +14,8 @@ public class Document
 
     private String notIndexed;
 
+    private String alsoNotIndexed;
+
     @Index
     private String content;
 
@@ -28,6 +30,7 @@ public class Document
         this.author = author;
         this.content = content;
         this.notIndexed = notIndexed;
+        this.alsoNotIndexed = "Hi";
     }
 
     public String getAuthor()
