@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 
 import com.xpn.xwiki.doc.XWikiDocument;
@@ -34,6 +35,7 @@ import javax.jdo.annotations.PrimaryKey;
 import javax.jdo.annotations.Index;
 import javax.jdo.annotations.NotPersistent;
 import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
+import org.xwiki.store.EntityProvider;
 import org.xwiki.model.reference.DocumentReference;
 
 @PersistenceCapable
@@ -143,7 +145,8 @@ public class PersistableXWikiDocument
      */
     private List<String> objectClassesXML;
 
-    public PersistableXWikiDocument(final XWikiDocument toClone)
+    public PersistableXWikiDocument(final XWikiDocument toClone,
+                                    final EntityProvider<XWikiDocument, DocumentReference> provider)
     {
         this.fullName = toClone.getFullName();
         this.name = toClone.getName();
@@ -179,18 +182,34 @@ public class PersistableXWikiDocument
             this.xwikiClass = XClassConverter.convertClass(toClone.getXClass());
         }
 
-        this.objects = cloneXObjects(toClone);
+        this.objects = xObjectsToObjects(toClone.getXObjects());
+        this.objectClassesXML = xObjectClassesToXML(toClone.getXObjects().keySet(), provider);
         //cloneAttachments(document);
     }
 
-    private static List<Object> cloneXObjects(final XWikiDocument toCloneXObjectsFrom)
+    private static List<Object> xObjectsToObjects(final Map<DocumentReference, List<BaseObject>> xObjects)
     {
-        final Map<DocumentReference, List<BaseObject>> xwikiObjects = toCloneXObjectsFrom.getXObjects();
         final List<Object> out = new ArrayList<Object>();
-        for (List<BaseObject> list : xwikiObjects.values()) {
+        for (List<BaseObject> list : xObjects.values()) {
             for (BaseObject obj : list) {
                 out.add(XObjectConverter.convertFromXObject(obj));
             }
+        }
+        return out;
+    }
+
+    private static List<String> xObjectClassesToXML(
+        final Set<DocumentReference> xObjectClasses,
+        final EntityProvider<XWikiDocument, DocumentReference> provider)
+    {
+        final List<String> out = new ArrayList<String>(xObjectClasses.size());
+        for (final DocumentReference classRef : xObjectClasses) {
+            final XWikiDocument doc = provider.get(classRef);
+            if (doc == null) {
+                throw new RuntimeException("Could not load document for class "
+                                            + classRef + " was it deleted?");
+            }
+            out.add(doc.getXClassXML());
         }
         return out;
     }
