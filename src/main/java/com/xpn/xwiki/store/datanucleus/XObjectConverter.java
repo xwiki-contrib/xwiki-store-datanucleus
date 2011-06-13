@@ -57,16 +57,13 @@ public final class XObjectConverter
 {
     /* ------------------------- Read an XObject into a persistable object. ------------------------- */
 
-    public static Object convertFromXObject(final BaseObject xwikiObject)
+    public static Object convertFromXObject(final BaseObject xwikiObject, final Class<?> objectClass)
     {
         final String className =
             JavaClassNameDocumentReferenceSerializer.serializeRef(xwikiObject.getXClassReference(), null);
-        final Class<?> objectClass;
-        try {
-            objectClass = Class.forName(className);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException("Couldn't find a class called " + className + " perhaps the class "
-                                       + "was not converted before trying to convert the object?");
+        if (!objectClass.getName().equals(className)) {
+            throw new RuntimeException("The provided class " + objectClass.getName() + " does not match "
+                                       + "the class name of the XWiki object " + className);
         }
 
         final Object out;

@@ -30,15 +30,17 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
-import javax.jdo.annotations.PersistenceCapable;
-import javax.jdo.annotations.PrimaryKey;
+import javax.jdo.annotations.IdentityType;
 import javax.jdo.annotations.Index;
 import javax.jdo.annotations.NotPersistent;
+import javax.jdo.annotations.PersistenceCapable;
+import javax.jdo.annotations.PrimaryKey;
 import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
 import org.xwiki.store.EntityProvider;
 import org.xwiki.model.reference.DocumentReference;
+import org.xwiki.model.reference.EntityReference;
 
-@PersistenceCapable
+@PersistenceCapable(identityType = IdentityType.APPLICATION)
 public class PersistableXWikiDocument
 {
     @NotPersistent
@@ -120,6 +122,14 @@ public class PersistableXWikiDocument
     @Index
     private boolean hidden;
 
+    /**
+     * The primary key is an array representation of the wiki, spaces, document name, and language
+     * xwiki:XWiki.WebHome in the default language would be ['xwiki', 'XWiki', 'WebHome', '']
+     */
+    @PrimaryKey
+    @Index
+    private String[] key;
+
     /** The wiki where this document belongs. */
     private String wiki;
 
@@ -182,17 +192,27 @@ public class PersistableXWikiDocument
             this.xwikiClass = XClassConverter.convertClass(toClone.getXClass());
         }
 
-        this.objects = xObjectsToObjects(toClone.getXObjects());
         this.objectClassesXML = xObjectClassesToXML(toClone.getXObjects().keySet(), provider);
+        this.objects = xObjectsToObjects(toClone.getXObjects(), provider);
+
+        this.key = keyGen(toClone.getDocumentReference(), this.language);
         //cloneAttachments(document);
     }
 
-    private static List<Object> xObjectsToObjects(final Map<DocumentReference, List<BaseObject>> xObjects)
+    private static List<Object> xObjectsToObjects(
+        final Map<DocumentReference, List<BaseObject>> xObjects,
+        final EntityProvider<XWikiDocument, DocumentReference> provider)
     {
         final List<Object> out = new ArrayList<Object>();
-        for (List<BaseObject> list : xObjects.values()) {
-            for (BaseObject obj : list) {
-                out.add(XObjectConverter.convertFromXObject(obj));
+        for (final DocumentReference ref : xObjects.keySet()) {
+            final List<BaseObject> list = xObjects.get(ref);
+
+            // We know the provider will not return null
+            // if it did then xObjectClassesToXML would have already thrown an exception.
+            final Class<?> cls = XClassConverter.convertClass(provider.get(ref).getXClass());
+
+            for (final BaseObject obj : list) {
+                out.add(XObjectConverter.convertFromXObject(obj, cls));
             }
         }
         return out;
@@ -211,6 +231,32 @@ public class PersistableXWikiDocument
             }
             out.add(doc.getXClassXML());
         }
+        return out;
+    }
+
+    /**
+     * Generate a key for a given document.
+     * This implementation attempts to be forward compatable with nested spaces.
+     */
+    private static String[] keyGen(final DocumentReference reference, final String language)
+    {
+        // Start at 1 because we know there will be a language.
+        int size = 1;
+        EntityReference ref = reference;
+        do {
+            ref = ref.getParent();
+            size++;
+        } while (ref != null);
+
+        final String[] out = new String[size];
+
+        out[out.length - 1] = language;
+        ref = reference;
+        for (int i = out.length - 2; i >= 0; i--) {
+            out[i] = ref.getName();
+            ref = ref.getParent();
+        }
+
         return out;
     }
 
