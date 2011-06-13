@@ -27,11 +27,6 @@ public class AppTest
     @BeforeClass
     public static void init() throws Exception
     {
-        System.setProperty("log4j.configuration", "log4j.properties");
-        System.setProperty("cassandra.config", "cassandra.yaml");
-        new EmbeddedCassandraService().start();
-        Thread.sleep(2000);
-
         FACTORY = JDOHelper.getPersistenceManagerFactory("Test");
 
         final PersistenceManager pm = FACTORY.getPersistenceManager();
