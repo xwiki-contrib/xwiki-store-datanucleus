@@ -1,1 +1,1 @@
-com.xpn.xwiki.store.DataNucleusStore
+com.xpn.xwiki.store.datanucleus.DataNucleusStore

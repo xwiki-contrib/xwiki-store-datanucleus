@@ -43,84 +43,62 @@ import org.xwiki.model.reference.EntityReference;
 @PersistenceCapable(identityType = IdentityType.APPLICATION)
 public class PersistableXWikiDocument
 {
-    @NotPersistent
-    private boolean isNew;
-
     /* XWikiDocument fields. */
     @Index
-    private String fullName;
+    public String fullName;
 
     @Index
-    private String name;
+    public String name;
+
+    public String title;
 
     @Index
-    private String title;
+    public String language;
+
+    public String defaultLanguage;
+
+    public int translation;
+
+    public Date date;
+
+    public Date contentUpdateDate;
+
+    public Date creationDate;
+
+    public String author;
+
+    public String contentAuthor;
+
+    public String creator;
 
     @Index
-    private String language;
+    public String space;
+
+    public String content;
+
+    public String version;
+
+    public String customClass;
 
     @Index
-    private String defaultLanguage;
+    public String parent;
+
+    public String xClassXML;
+
+    public int elements;
+
+    public String defaultTemplate;
+
+    public String validationScript;
+
+    public String comment;
+
+    public boolean isMinorEdit;
+
+    public String syntaxId;
 
     @Index
-    private int translation;
-
-    @Index
-    private Date date;
-
-    @Index
-    private Date contentUpdateDate;
-
-    @Index
-    private Date creationDate;
-
-    @Index
-    private String author;
-
-    @Index
-    private String contentAuthor;
-
-    @Index
-    private String creator;
-
-    @Index
-    private String space;
-
-    @Index
-    private String content;
-
-    @Index
-    private String version;
-
-    @Index
-    private String customClass;
-
-    @Index
-    private String parent;
-
-    @Index
-    private String xClassXML;
-
-    @Index
-    private int elements;
-
-    @Index
-    private String defaultTemplate;
-
-    @Index
-    private String validationScript;
-
-    @Index
-    private String comment;
-
-    @Index
-    private boolean isMinorEdit;
-
-    @Index
-    private String syntaxId;
-
-    @Index
-    private boolean hidden;
+    public boolean hidden;
 
     /**
      * The primary key is an array representation of the wiki, spaces, document name, and language
@@ -128,16 +106,16 @@ public class PersistableXWikiDocument
      */
     @PrimaryKey
     @Index
-    private String[] key;
+    public String[] key;
 
     /** The wiki where this document belongs. */
-    private String wiki;
+    public String wiki;
 
     /**
      * The class defined in this document.
      * This is needed so we can convert objects of this document's class.
      */
-    private Class xwikiClass;
+    public Class xwikiClass;
 
     /**
      * Objects.
@@ -146,14 +124,14 @@ public class PersistableXWikiDocument
      * All objects of the same class *should* be consecutive on this list but the code will recover from
      * an out of order situation.
      */
-    private List<Object> objects;
+    public List<Object> objects;
 
     /**
      * XML representations of the classes of the above objects.
      * These are needed to convert the Objects back to XWiki objects.
      * The order of these classes determines the order in which the classes will be placed in the map.
      */
-    private List<String> objectClassesXML;
+    public List<String> objectClassesXML;
 
     public PersistableXWikiDocument(final XWikiDocument toClone,
                                     final EntityProvider<XWikiDocument, DocumentReference> provider)
@@ -186,17 +164,43 @@ public class PersistableXWikiDocument
 
         this.wiki = toClone.getDatabase();
 
+        EntityProvider<XWikiDocument, DocumentReference> prov = provider;
+
         // Get the XClass, if it doesn't exist then it's created so having no fields = nonexistance.
         final BaseClass baseClass = toClone.getXClass();
         if (baseClass.getPropertyList().size() > 0) {
             this.xwikiClass = XClassConverter.convertClass(toClone.getXClass());
+
+            // If this document has an object which self references
+            // then we need to break the chicken/egg cycle.
+            prov = new EntityProviderWrapper<XWikiDocument, DocumentReference>(provider)
+            {
+                public final BaseClass thisClass = baseClass;
+
+                public final DocumentReference ref = toClone.getDocumentReference();
+
+                public XWikiDocument get(final DocumentReference reference)
+                {
+                    if (this.ref.equals(reference)) {
+                        final XWikiDocument out = new XWikiDocument(this.ref);
+                        out.setXClass(baseClass);
+                        return out;
+                    }
+                    return super.get(reference);
+                }
+            };
         }
 
-        this.objectClassesXML = xObjectClassesToXML(toClone.getXObjects().keySet(), provider);
-        this.objects = xObjectsToObjects(toClone.getXObjects(), provider);
+        this.objectClassesXML = xObjectClassesToXML(toClone.getXObjects().keySet(), prov);
+        this.objects = xObjectsToObjects(toClone.getXObjects(), prov);
 
         this.key = keyGen(toClone.getDocumentReference(), this.language);
         //cloneAttachments(document);
+    }
+
+    public PersistableXWikiDocument(final DocumentReference reference, final String language)
+    {
+        this.key = keyGen(reference, language);
     }
 
     private static List<Object> xObjectsToObjects(
@@ -238,7 +242,7 @@ public class PersistableXWikiDocument
      * Generate a key for a given document.
      * This implementation attempts to be forward compatable with nested spaces.
      */
-    private static String[] keyGen(final DocumentReference reference, final String language)
+    public static String[] keyGen(final DocumentReference reference, final String language)
     {
         // Start at 1 because we know there will be a language.
         int size = 1;
@@ -263,6 +267,12 @@ public class PersistableXWikiDocument
     public XWikiDocument toXWikiDocument()
     {
         final XWikiDocument out = new XWikiDocument(null);
+
+        // This is a hack because it is hard to know if the document actually loaded from the store
+        // or not. We hope that no document for which there is a fullName will ever be new.
+        // This will fail to work correctly if someone creates a new XWikiDocument, converts it to a
+        // PersistableXWikiDocument then converts it back.
+        out.setNew(this.fullName == null);
 
         out.setFullName(this.fullName);
         out.setName(this.name);
@@ -378,5 +388,25 @@ public class PersistableXWikiDocument
             }
         }
         return out;
+    }
+
+    private static class EntityProviderWrapper<E, R> implements EntityProvider<E, R>
+    {
+        public final EntityProvider<E, R> wrapped;
+
+        public EntityProviderWrapper(final EntityProvider<E, R> wrapped)
+        {
+            this.wrapped = wrapped;
+        }
+
+        public E get(final R reference)
+        {
+            return wrapped.get(reference);
+        }
+
+        public List<E> get(final List<R> references)
+        {
+            return wrapped.get(references);
+        }
     }
 }

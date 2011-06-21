@@ -10,6 +10,7 @@ import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import org.codehaus.groovy.control.Phases;
@@ -18,6 +19,7 @@ import org.codehaus.groovy.control.CompilationUnit;
 import javax.jdo.JDOEnhancer;
 import groovy.lang.GroovyClassLoader;
 
+@Ignore
 public class AppTest
 {
     private static PersistenceManagerFactory FACTORY;

@@ -19,9 +19,13 @@
  *
  */
 
-package com.xpn.xwiki.store;
+package com.xpn.xwiki.store.datanucleus;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Arrays;
+import java.util.ArrayList;
+import java.util.Collection;
 
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
@@ -29,30 +33,119 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.doc.XWikiLink;
 import com.xpn.xwiki.doc.XWikiLock;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.store.XWikiStoreInterface;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryManager;
+import org.apache.cassandra.thrift.CassandraDaemon;
+
+import org.xwiki.store.EntityProvider;
+import javax.jdo.JDOHelper;
+import javax.jdo.PersistenceManager;
+import javax.jdo.PersistenceManagerFactory;
+import javax.jdo.Transaction;
+import javax.jdo.JDOObjectNotFoundException;
+import javax.jdo.Query;
+
 
 @Component("datanucleus")
 public class DataNucleusStore implements XWikiStoreInterface
 {
-    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context) throws XWikiException
+    private PersistenceManagerFactory factory;
+
+    private EntityProvider<XWikiDocument, DocumentReference> provider;
+
+    public DataNucleusStore()
     {
-        throw new RuntimeException("not implemented");
+        /*System.setProperty("log4j.configuration", "log4j.properties");
+        System.setProperty("cassandra.config", "cassandra.yaml");
+        System.setProperty("cassandra-foreground", "1");
+        final CassandraDaemon daemon = new CassandraDaemon();
+        try {
+            daemon.init(null);
+        } catch (IOException e) {
+            throw new RuntimeException("failed to start cassandra", e);
+        }*/
+        /*new Thread(new Runnable()
+        {
+            public void run()
+            {
+                System.out.println("Starting Cassandra...");
+                daemon.start();
+                System.out.println("Started Cassandra...");
+            }
+        });*/
+        //daemon.start();
+        //try{Thread.sleep(10000);}catch(Exception e){}
+
+        this.factory = JDOHelper.getPersistenceManagerFactory("Test");
+        this.provider = new DataNucleusXWikiDocumentProvider(this.factory);
     }
 
-    public void saveXWikiDoc(final XWikiDocument doc,
-                             final XWikiContext context,
-                             final boolean bTransaction)
-        throws XWikiException
+    public void cleanUp(final XWikiContext context)
     {
-        throw new RuntimeException("not implemented");
+        // This is a hook for when the system shuts down, nothing is required to be done.
     }
 
-    public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext context)
+    /* ------------------ Load & Store ------------------ */
+
+    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused) throws XWikiException
+    {
+        final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
+        System.err.println(">>>>>STORING! " + Arrays.asList(key));
+
+        final PersistableXWikiDocument pxd = new PersistableXWikiDocument(doc, this.provider);
+        final PersistenceManager manager = this.factory.getPersistenceManager();
+        final Transaction txn = manager.currentTransaction();
+        txn.begin();
+        manager.makePersistent(pxd);
+        //manager.putUserObject(key, pxd);
+        txn.commit();
+        manager.close();
+    }
+
+    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused, final boolean ignored)
         throws XWikiException
     {
-        throw new RuntimeException("not implemented");
+        this.saveXWikiDoc(doc, null);
+    }
+
+    public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
+        throws XWikiException
+    {
+        final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
+        System.err.println(">>>>>LOADING! " + Arrays.asList(key));
+        final PersistenceManager manager = this.factory.getPersistenceManager();
+        try {
+            final PersistableXWikiDocument pxd =
+                (PersistableXWikiDocument) manager.getObjectById(PersistableXWikiDocument.class, key);
+            return pxd.toXWikiDocument();
+        } catch (JDOObjectNotFoundException e) {
+            // Document not found, return input document (new doc)
+            return doc;
+        }
+    }
+
+    public boolean exists(final XWikiDocument doc, final XWikiContext unused) throws XWikiException
+    {
+        return !this.loadXWikiDoc(doc, null).isNew();
+    }
+
+    public List<String> getTranslationList(final XWikiDocument doc, final XWikiContext unused)
+        throws XWikiException
+    {
+        final PersistenceManager manager = this.factory.getPersistenceManager();
+        final Query query = manager.newQuery(PersistableXWikiDocument.class);
+        query.setFilter("wiki == :wiki && fullName == :name");
+        final Collection<PersistableXWikiDocument> translations =
+            (Collection<PersistableXWikiDocument>) query.execute(doc.getDatabase(), doc.getFullName());
+        final List<String> out = new ArrayList<String>(translations.size());
+        for (final PersistableXWikiDocument translation : translations) {
+            if (translation.language != null && !translation.language.equals("")) {
+                out.add(translation.language);
+            }
+        }
+        return out;
     }
 
     public void deleteXWikiDoc(final XWikiDocument doc, final XWikiContext context)
@@ -65,6 +158,65 @@ public class DataNucleusStore implements XWikiStoreInterface
     {
         throw new RuntimeException("not implemented");
     }
+
+    /*------------------- Links & Locks -------------------*/
+
+    public XWikiLock loadLock(final long docId, final XWikiContext context, final boolean bTransaction)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    public void saveLock(final XWikiLock lock, final XWikiContext context, final boolean bTransaction)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    public void deleteLock(final XWikiLock lock, final XWikiContext context, final boolean bTransaction)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    public List<XWikiLink> loadLinks(final long docId,
+                                     final XWikiContext context,
+                                     final boolean bTransaction)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    public List<DocumentReference> loadBacklinks(final DocumentReference documentReference,
+                                                 final boolean bTransaction,
+                                                 final XWikiContext context)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    @Deprecated
+    public List<String> loadBacklinks(final String fullName,
+                                      final XWikiContext context,
+                                      final boolean bTransaction)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    public void saveLinks(final XWikiDocument doc, final XWikiContext context, final boolean bTransaction)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    public void deleteLinks(final long docId, final XWikiContext context, final boolean bTransaction)
+        throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
+
+    /*------------------- Search -------------------*/
 
     public int countDocuments(final String wheresql, final XWikiContext context) throws XWikiException
     {
@@ -290,61 +442,6 @@ public class DataNucleusStore implements XWikiStoreInterface
         throw new RuntimeException("not implemented");
     }
 
-    public XWikiLock loadLock(final long docId, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void saveLock(final XWikiLock lock, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void deleteLock(final XWikiLock lock, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiLink> loadLinks(final long docId,
-                                     final XWikiContext context,
-                                     final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<DocumentReference> loadBacklinks(final DocumentReference documentReference,
-                                                 final boolean bTransaction,
-                                                 final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    @Deprecated
-    public List<String> loadBacklinks(final String fullName,
-                                      final XWikiContext context,
-                                      final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void saveLinks(final XWikiDocument doc, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void deleteLinks(final long docId, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
     public <T> List<T> search(final String sql,
                               final int nb,
                               final int start,
@@ -385,10 +482,12 @@ public class DataNucleusStore implements XWikiStoreInterface
         throw new RuntimeException("not implemented");
     }
 
-    public void cleanUp(final XWikiContext context)
+    public QueryManager getQueryManager()
     {
         throw new RuntimeException("not implemented");
     }
+
+    /*------------------- Multi-wiki -------------------*/
 
     public boolean isWikiNameAvailable(final String wikiName, final XWikiContext context)
         throws XWikiException
@@ -408,11 +507,7 @@ public class DataNucleusStore implements XWikiStoreInterface
         throw new RuntimeException("not implemented");
     }
 
-    public boolean exists(final XWikiDocument doc, final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
+    /*------------------- Custom Mapping -------------------*/
 
     public boolean isCustomMappingValid(final BaseClass bclass,
                                         final String custommapping1,
@@ -447,17 +542,6 @@ public class DataNucleusStore implements XWikiStoreInterface
 
     public void injectUpdatedCustomMappings(final XWikiContext context)
         throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<String> getTranslationList(final XWikiDocument doc, final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public QueryManager getQueryManager()
     {
         throw new RuntimeException("not implemented");
     }

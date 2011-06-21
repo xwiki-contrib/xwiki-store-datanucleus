@@ -19,7 +19,9 @@ import org.xwiki.component.annotation.ComponentAnnotationLoader;
 import org.xwiki.test.AbstractComponentTestCase;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.EntityProvider;
+import com.xpn.xwiki.store.datanucleus.DataNucleusStore;
 import com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument;
+import com.xpn.xwiki.store.XWikiStoreInterface;
 
 /*import org.xwiki.context.Execution;
 
@@ -31,11 +33,14 @@ public class LoadStoreTest extends AbstractComponentTestCase
 {
     private static PersistenceManagerFactory FACTORY;
 
+    private static XWikiStoreInterface STORE;
+
     private PersistenceManager manager;
 
     @BeforeClass
     public static void init() throws Exception
     {
+        STORE = new DataNucleusStore();
         FACTORY = JDOHelper.getPersistenceManagerFactory("Test");
     }
 
@@ -71,9 +76,10 @@ public class LoadStoreTest extends AbstractComponentTestCase
                 add(globalRights);
             }});
 
-        final PersistableXWikiDocument pxd = new PersistableXWikiDocument(xwikiPrefs, docProvider);
+        STORE.saveXWikiDoc(globalRights, null);
+        STORE.saveXWikiDoc(xwikiPrefs, null);
 
-        this.manager.makePersistent(pxd);
+        Assert.assertEquals(0, STORE.getTranslationList(xwikiPrefs, null).size());
 
         // Query
 
