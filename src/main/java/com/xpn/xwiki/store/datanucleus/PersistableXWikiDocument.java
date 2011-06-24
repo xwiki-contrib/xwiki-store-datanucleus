@@ -36,12 +36,15 @@ import javax.jdo.annotations.NotPersistent;
 import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.PrimaryKey;
 import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
+import org.xwiki.store.objects.PersistableObject;
+import org.xwiki.store.objects.PersistableClass;
+import org.xwiki.store.objects.PersistableClassLoader;
 import org.xwiki.store.EntityProvider;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReference;
 
 @PersistenceCapable(identityType = IdentityType.APPLICATION)
-public class PersistableXWikiDocument
+public class PersistableXWikiDocument extends PersistableObject
 {
     /* XWikiDocument fields. */
     @Index
@@ -112,12 +115,6 @@ public class PersistableXWikiDocument
     public String wiki;
 
     /**
-     * The class defined in this document.
-     * This is needed so we can convert objects of this document's class.
-     */
-    public Class xwikiClass;
-
-    /**
      * Objects.
      * The class of each object is determinable by object.getClass() and the object index
      * in the list corrisponding to it's class is determined by it's placement on the list.
@@ -134,7 +131,8 @@ public class PersistableXWikiDocument
     public List<String> objectClassesXML;
 
     public PersistableXWikiDocument(final XWikiDocument toClone,
-                                    final EntityProvider<XWikiDocument, DocumentReference> provider)
+                                    final EntityProvider<XWikiDocument, DocumentReference> provider,
+                                    final PersistableClassLoader loader)
     {
         this.fullName = toClone.getFullName();
         this.name = toClone.getName();
@@ -169,8 +167,6 @@ public class PersistableXWikiDocument
         // Get the XClass, if it doesn't exist then it's created so having no fields = nonexistance.
         final BaseClass baseClass = toClone.getXClass();
         if (baseClass.getPropertyList().size() > 0) {
-            this.xwikiClass = XClassConverter.convertClass(toClone.getXClass());
-
             // If this document has an object which self references
             // then we need to break the chicken/egg cycle.
             prov = new EntityProviderWrapper<XWikiDocument, DocumentReference>(provider)
@@ -192,7 +188,7 @@ public class PersistableXWikiDocument
         }
 
         this.objectClassesXML = xObjectClassesToXML(toClone.getXObjects().keySet(), prov);
-        this.objects = xObjectsToObjects(toClone.getXObjects(), prov);
+        this.objects = xObjectsToObjects(toClone.getXObjects(), prov, loader);
 
         this.key = keyGen(toClone.getDocumentReference(), this.language);
         //cloneAttachments(document);
@@ -205,15 +201,18 @@ public class PersistableXWikiDocument
 
     private static List<Object> xObjectsToObjects(
         final Map<DocumentReference, List<BaseObject>> xObjects,
-        final EntityProvider<XWikiDocument, DocumentReference> provider)
+        final EntityProvider<XWikiDocument, DocumentReference> provider,
+        final PersistableClassLoader loader)
     {
         final List<Object> out = new ArrayList<Object>();
+        final XClassConverter converter = new XClassConverter(loader);
+
         for (final DocumentReference ref : xObjects.keySet()) {
             final List<BaseObject> list = xObjects.get(ref);
 
             // We know the provider will not return null
             // if it did then xObjectClassesToXML would have already thrown an exception.
-            final Class<?> cls = XClassConverter.convertClass(provider.get(ref).getXClass());
+            final Class<?> cls = converter.convert(provider.get(ref).getXClass());
 
             for (final BaseObject obj : list) {
                 out.add(XObjectConverter.convertFromXObject(obj, cls));

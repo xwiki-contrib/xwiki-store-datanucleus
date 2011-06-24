@@ -22,6 +22,7 @@
 package com.xpn.xwiki.store.datanucleus;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.util.List;
 import java.util.Arrays;
 import java.util.ArrayList;
@@ -39,6 +40,9 @@ import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryManager;
 import org.apache.cassandra.thrift.CassandraDaemon;
 
+import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
+import org.xwiki.store.datanucleus.internal.DataNucleusClassLoader;
+import org.xwiki.store.objects.PersistableClassLoader;
 import org.xwiki.store.EntityProvider;
 import javax.jdo.JDOHelper;
 import javax.jdo.PersistenceManager;
@@ -47,13 +51,19 @@ import javax.jdo.Transaction;
 import javax.jdo.JDOObjectNotFoundException;
 import javax.jdo.Query;
 
+import org.apache.commons.io.IOUtils;
+
 
 @Component("datanucleus")
 public class DataNucleusStore implements XWikiStoreInterface
 {
-    private PersistenceManagerFactory factory;
+    private final PersistenceManagerFactory factory;
 
-    private EntityProvider<XWikiDocument, DocumentReference> provider;
+    private final DataNucleusPersistableObjectStore objStore;
+
+    private final EntityProvider<XWikiDocument, DocumentReference> provider;
+
+    private final PersistableClassLoader loader;
 
     public DataNucleusStore()
     {
@@ -80,6 +90,8 @@ public class DataNucleusStore implements XWikiStoreInterface
 
         this.factory = JDOHelper.getPersistenceManagerFactory("Test");
         this.provider = new DataNucleusXWikiDocumentProvider(this.factory);
+        this.objStore = new DataNucleusPersistableObjectStore(this.factory);
+        this.loader = new DataNucleusClassLoader(this.factory, this.getClass().getClassLoader());
     }
 
     public void cleanUp(final XWikiContext context)
@@ -91,10 +103,14 @@ public class DataNucleusStore implements XWikiStoreInterface
 
     public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused) throws XWikiException
     {
-        final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
+        final String[] key =
+            PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
         System.err.println(">>>>>STORING! " + Arrays.asList(key));
 
-        final PersistableXWikiDocument pxd = new PersistableXWikiDocument(doc, this.provider);
+        final PersistableXWikiDocument pxd = new PersistableXWikiDocument(doc, this.provider, this.loader);
+        this.objStore.put(pxd);
+
+/*        
         final PersistenceManager manager = this.factory.getPersistenceManager();
         final Transaction txn = manager.currentTransaction();
         txn.begin();
@@ -102,6 +118,7 @@ public class DataNucleusStore implements XWikiStoreInterface
         //manager.putUserObject(key, pxd);
         txn.commit();
         manager.close();
+*/
     }
 
     public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused, final boolean ignored)
@@ -115,14 +132,18 @@ public class DataNucleusStore implements XWikiStoreInterface
     {
         final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
         System.err.println(">>>>>LOADING! " + Arrays.asList(key));
-        final PersistenceManager manager = this.factory.getPersistenceManager();
+
+        //final PersistenceManager manager = this.factory.getPersistenceManager();
+        final ClassLoader oldLoader = Thread.currentThread().getContextClassLoader();
         try {
+            Thread.currentThread().setContextClassLoader(this.loader.asNativeLoader());
+            //final PersistableXWikiDocument pxd =
+              //  (PersistableXWikiDocument) manager.getObjectById(PersistableXWikiDocument.class, key);
             final PersistableXWikiDocument pxd =
-                (PersistableXWikiDocument) manager.getObjectById(PersistableXWikiDocument.class, key);
-            return pxd.toXWikiDocument();
-        } catch (JDOObjectNotFoundException e) {
-            // Document not found, return input document (new doc)
-            return doc;
+                (PersistableXWikiDocument) this.objStore.get(key, PersistableXWikiDocument.class.getName());
+            return (pxd == null) ? doc : pxd.toXWikiDocument();
+        } finally {
+            Thread.currentThread().setContextClassLoader(oldLoader);
         }
     }
 
