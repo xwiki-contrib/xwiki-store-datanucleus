@@ -44,6 +44,9 @@ public final class JavaClassNameDocumentReferenceSerializer
 
     public static String serializeRef(final EntityReference reference, final Object... parameters)
     {
+        if (reference == null) {
+            throw new NullPointerException();
+        }
         EntityReference ref = reference;
         final StringBuilder sb = new StringBuilder();
         while (ref != null) {

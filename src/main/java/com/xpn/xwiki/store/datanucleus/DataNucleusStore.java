@@ -22,9 +22,7 @@
 package com.xpn.xwiki.store.datanucleus;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.util.List;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Collection;
 
@@ -38,20 +36,16 @@ import com.xpn.xwiki.store.XWikiStoreInterface;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryManager;
-import org.apache.cassandra.thrift.CassandraDaemon;
 
 import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
 import org.xwiki.store.datanucleus.internal.DataNucleusClassLoader;
 import org.xwiki.store.objects.PersistableClassLoader;
-import org.xwiki.store.EntityProvider;
 import javax.jdo.JDOHelper;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
-import javax.jdo.Transaction;
-import javax.jdo.JDOObjectNotFoundException;
 import javax.jdo.Query;
 
-import org.apache.commons.io.IOUtils;
+//import org.apache.commons.io.IOUtils;
 
 
 @Component("datanucleus")
@@ -61,123 +55,21 @@ public class DataNucleusStore implements XWikiStoreInterface
 
     private final DataNucleusPersistableObjectStore objStore;
 
-    private final EntityProvider<XWikiDocument, DocumentReference> provider;
-
     private final PersistableClassLoader loader;
+
+    private final DataNucleusXWikiDocumentStore docStore;
 
     public DataNucleusStore()
     {
-        /*System.setProperty("log4j.configuration", "log4j.properties");
-        System.setProperty("cassandra.config", "cassandra.yaml");
-        System.setProperty("cassandra-foreground", "1");
-        final CassandraDaemon daemon = new CassandraDaemon();
-        try {
-            daemon.init(null);
-        } catch (IOException e) {
-            throw new RuntimeException("failed to start cassandra", e);
-        }*/
-        /*new Thread(new Runnable()
-        {
-            public void run()
-            {
-                System.out.println("Starting Cassandra...");
-                daemon.start();
-                System.out.println("Started Cassandra...");
-            }
-        });*/
-        //daemon.start();
-        //try{Thread.sleep(10000);}catch(Exception e){}
-
         this.factory = JDOHelper.getPersistenceManagerFactory("Test");
-        this.provider = new DataNucleusXWikiDocumentProvider(this.factory);
         this.objStore = new DataNucleusPersistableObjectStore(this.factory);
         this.loader = new DataNucleusClassLoader(this.factory, this.getClass().getClassLoader());
+        this.docStore = new DataNucleusXWikiDocumentStore(this.loader, this.objStore);
     }
 
     public void cleanUp(final XWikiContext context)
     {
         // This is a hook for when the system shuts down, nothing is required to be done.
-    }
-
-    /* ------------------ Load & Store ------------------ */
-
-    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused) throws XWikiException
-    {
-        final String[] key =
-            PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
-        System.err.println(">>>>>STORING! " + Arrays.asList(key));
-
-        final PersistableXWikiDocument pxd = new PersistableXWikiDocument(doc, this.provider, this.loader);
-        this.objStore.put(pxd);
-
-/*        
-        final PersistenceManager manager = this.factory.getPersistenceManager();
-        final Transaction txn = manager.currentTransaction();
-        txn.begin();
-        manager.makePersistent(pxd);
-        //manager.putUserObject(key, pxd);
-        txn.commit();
-        manager.close();
-*/
-    }
-
-    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused, final boolean ignored)
-        throws XWikiException
-    {
-        this.saveXWikiDoc(doc, null);
-    }
-
-    public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
-        throws XWikiException
-    {
-        final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
-        System.err.println(">>>>>LOADING! " + Arrays.asList(key));
-
-        //final PersistenceManager manager = this.factory.getPersistenceManager();
-        final ClassLoader oldLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            Thread.currentThread().setContextClassLoader(this.loader.asNativeLoader());
-            //final PersistableXWikiDocument pxd =
-              //  (PersistableXWikiDocument) manager.getObjectById(PersistableXWikiDocument.class, key);
-            final PersistableXWikiDocument pxd =
-                (PersistableXWikiDocument) this.objStore.get(key, PersistableXWikiDocument.class.getName());
-            return (pxd == null) ? doc : pxd.toXWikiDocument();
-        } finally {
-            Thread.currentThread().setContextClassLoader(oldLoader);
-        }
-    }
-
-    public boolean exists(final XWikiDocument doc, final XWikiContext unused) throws XWikiException
-    {
-        return !this.loadXWikiDoc(doc, null).isNew();
-    }
-
-    public List<String> getTranslationList(final XWikiDocument doc, final XWikiContext unused)
-        throws XWikiException
-    {
-        final PersistenceManager manager = this.factory.getPersistenceManager();
-        final Query query = manager.newQuery(PersistableXWikiDocument.class);
-        query.setFilter("wiki == :wiki && fullName == :name");
-        final Collection<PersistableXWikiDocument> translations =
-            (Collection<PersistableXWikiDocument>) query.execute(doc.getDatabase(), doc.getFullName());
-        final List<String> out = new ArrayList<String>(translations.size());
-        for (final PersistableXWikiDocument translation : translations) {
-            if (translation.language != null && !translation.language.equals("")) {
-                out.add(translation.language);
-            }
-        }
-        return out;
-    }
-
-    public void deleteXWikiDoc(final XWikiDocument doc, final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<String> getClassList(final XWikiContext context) throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
     }
 
     /*------------------- Links & Locks -------------------*/
@@ -238,6 +130,35 @@ public class DataNucleusStore implements XWikiStoreInterface
     }
 
     /*------------------- Search -------------------*/
+
+    public List<String> getTranslationList(final XWikiDocument doc, final XWikiContext unused)
+        throws XWikiException
+    {
+        PersistenceManager manager = null;
+        try {
+            manager = this.factory.getPersistenceManager();
+            final Query query = manager.newQuery(PersistableXWikiDocument.class);
+            query.setFilter("wiki == :wiki && fullName == :name");
+            final Collection<PersistableXWikiDocument> translations =
+                (Collection<PersistableXWikiDocument>) query.execute(doc.getDatabase(), doc.getFullName());
+            final List<String> out = new ArrayList<String>(translations.size());
+            for (final PersistableXWikiDocument translation : translations) {
+                if (translation.language != null && !translation.language.equals("")) {
+                    out.add(translation.language);
+                }
+            }
+            return out;
+        } finally {
+            if (manager != null) {
+                manager.close();
+            }
+        }
+    }
+
+    public List<String> getClassList(final XWikiContext context) throws XWikiException
+    {
+        throw new RuntimeException("not implemented");
+    }
 
     public int countDocuments(final String wheresql, final XWikiContext context) throws XWikiException
     {
@@ -565,5 +486,35 @@ public class DataNucleusStore implements XWikiStoreInterface
         throws XWikiException
     {
         throw new RuntimeException("not implemented");
+    }
+
+    /* ------------------ Load & Store documents (DataNucleusXWikiDocumentStore) ------------------ */
+
+    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context) throws XWikiException
+    {
+        this.docStore.saveXWikiDoc(doc, context);
+    }
+
+    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused, final boolean ignored)
+        throws XWikiException
+    {
+        this.docStore.saveXWikiDoc(doc, null, false);
+    }
+
+    public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.docStore.loadXWikiDoc(doc, null);
+    }
+
+    public boolean exists(final XWikiDocument doc, final XWikiContext unused) throws XWikiException
+    {
+        return this.docStore.exists(doc, null);
+    }
+
+    public void deleteXWikiDoc(final XWikiDocument doc, final XWikiContext context)
+        throws XWikiException
+    {
+        this.docStore.deleteXWikiDoc(doc, null);
     }
 }

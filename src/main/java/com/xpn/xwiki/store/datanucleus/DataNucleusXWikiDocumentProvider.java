@@ -26,6 +26,8 @@ import java.util.List;
 import com.xpn.xwiki.doc.XWikiDocument;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.EntityProvider;
+import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
+import org.xwiki.store.objects.PersistableClassLoader;
 import com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
@@ -34,44 +36,35 @@ import javax.jdo.JDOObjectNotFoundException;
 
 public class DataNucleusXWikiDocumentProvider implements EntityProvider<XWikiDocument, DocumentReference>
 {
-    private PersistenceManagerFactory factory;
+    private PersistableClassLoader loader;
 
-    public DataNucleusXWikiDocumentProvider(final PersistenceManagerFactory factory)
+    private DataNucleusPersistableObjectStore objStore;
+
+    public DataNucleusXWikiDocumentProvider(final PersistableClassLoader loader,
+                                            final DataNucleusPersistableObjectStore objStore)
     {
-        this.factory = factory;
+        this.loader = loader;
+        this.objStore = objStore;
     }
 
     public XWikiDocument get(final DocumentReference reference)
     {
         final String[] key = PersistableXWikiDocument.keyGen(reference, "");
         System.err.println(">>>>>LOADING! " + Arrays.asList(key));
-        final PersistenceManager manager = this.factory.getPersistenceManager();
+
+        final ClassLoader oldLoader = Thread.currentThread().getContextClassLoader();
         try {
+            Thread.currentThread().setContextClassLoader(this.loader.asNativeLoader());
             final PersistableXWikiDocument pxd =
-                (PersistableXWikiDocument) manager.getObjectById(PersistableXWikiDocument.class, key);
-            return pxd.toXWikiDocument();
-        } catch (JDOObjectNotFoundException e) {
-            // Document not found, return null
-            return null;
+                (PersistableXWikiDocument) this.objStore.get(key, PersistableXWikiDocument.class.getName());
+            return (pxd == null) ? null : pxd.toXWikiDocument();
+        } finally {
+            Thread.currentThread().setContextClassLoader(oldLoader);
         }
     }
 
     public List<XWikiDocument> get(final List<DocumentReference> references)
     {
-        final List<PersistableXWikiDocument> persistables =
-            new ArrayList<PersistableXWikiDocument>(references.size());
-        for (final DocumentReference ref : references) {
-            persistables.add(new PersistableXWikiDocument(ref, ""));
-        }
-
-        final PersistenceManager manager = this.factory.getPersistenceManager();
-        manager.retrieveAll(persistables);
-        manager.close();
-
-        final List<XWikiDocument> out = new ArrayList<XWikiDocument>(references.size());
-        for (final PersistableXWikiDocument pxd : persistables) {
-            out.add(pxd.toXWikiDocument());
-        }
-        return out;
+        throw new RuntimeException("not implemented");
     }
 }

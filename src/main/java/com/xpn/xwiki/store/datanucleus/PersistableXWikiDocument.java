@@ -26,6 +26,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 
+import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.objects.BaseObject;
@@ -130,6 +131,8 @@ public class PersistableXWikiDocument extends PersistableObject
      */
     public List<String> objectClassesXML;
 
+    public List<PersistableXWikiAttachment> attachments;
+
     public PersistableXWikiDocument(final XWikiDocument toClone,
                                     final EntityProvider<XWikiDocument, DocumentReference> provider,
                                     final PersistableClassLoader loader)
@@ -169,6 +172,7 @@ public class PersistableXWikiDocument extends PersistableObject
         if (baseClass.getPropertyList().size() > 0) {
             // If this document has an object which self references
             // then we need to break the chicken/egg cycle.
+            // TODO: Loops with more than 2 classes.
             prov = new EntityProviderWrapper<XWikiDocument, DocumentReference>(provider)
             {
                 public final BaseClass thisClass = baseClass;
@@ -191,7 +195,7 @@ public class PersistableXWikiDocument extends PersistableObject
         this.objects = xObjectsToObjects(toClone.getXObjects(), prov, loader);
 
         this.key = keyGen(toClone.getDocumentReference(), this.language);
-        //cloneAttachments(document);
+        this.attachments = xAttachmentsToPersistableAttachments(toClone.getAttachmentList());
     }
 
     public PersistableXWikiDocument(final DocumentReference reference, final String language)
@@ -263,6 +267,17 @@ public class PersistableXWikiDocument extends PersistableObject
         return out;
     }
 
+    private static List<PersistableXWikiAttachment>
+        xAttachmentsToPersistableAttachments(final List<XWikiAttachment> attachments)
+    {
+        final List<PersistableXWikiAttachment> out =
+            new ArrayList<PersistableXWikiAttachment>(attachments.size());
+        for (final XWikiAttachment attach : attachments) {
+            out.add(new PersistableXWikiAttachment(attach));
+        }
+        return out;
+    }
+
     public XWikiDocument toXWikiDocument()
     {
         final XWikiDocument out = new XWikiDocument(null);
@@ -301,8 +316,31 @@ public class PersistableXWikiDocument extends PersistableObject
 
         out.setDatabase(this.wiki);
 
-        out.setXObjects(objectsToXObjects(this.objects, this.objectClassesXML, out.getDocumentReference()));
+        try {
+            out.setXObjects(objectsToXObjects(
+                 this.objects, this.objectClassesXML, out.getDocumentReference()));
+        } catch (NullPointerException e) {
+            if (this.objects == null && this.objectClassesXML == null) {
+                System.err.println("\n\n\n\n\n\n\n" + this.fullName + " has no xobjects right?\n\n\n\n\n");
+            } else {
+                throw new NullPointerException("" + this.objects + "  " + this.objectClassesXML);
+            }
+        }
 
+        if (this.attachments != null) {
+            out.setAttachmentList(persistableAttachmentsToXWikiAttachments(this.attachments, out));
+        }
+
+        return out;
+    }
+
+    private static List<XWikiAttachment> persistableAttachmentsToXWikiAttachments(
+        final List<PersistableXWikiAttachment> attachments, final XWikiDocument attachedTo)
+    {
+        final List<XWikiAttachment> out = new ArrayList<XWikiAttachment>(attachments.size());
+        for (final PersistableXWikiAttachment attach : attachments) {
+            out.add(attach.toXWikiAttachment(attachedTo));
+        }
         return out;
     }
 

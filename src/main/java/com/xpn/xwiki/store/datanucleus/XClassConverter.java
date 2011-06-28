@@ -34,6 +34,7 @@ import com.xpn.xwiki.objects.DateProperty;
 import org.xwiki.model.reference.EntityReference;
 import org.xwiki.store.datanucleus.internal.JavaIdentifierEscaper;
 import org.xwiki.store.datanucleus.internal.GroovyPersistableClassCompiler;
+import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
 import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.objects.PersistableClassLoader;
 
@@ -48,15 +49,26 @@ import org.xwiki.store.objects.PersistableObject;
  */
 public class XClassConverter
 {
+    private final PersistableClassLoader loader;
+
     private final GroovyPersistableClassCompiler compiler;
 
     public XClassConverter(final PersistableClassLoader loader)
     {
+        this.loader = loader;
         this.compiler = new GroovyPersistableClassCompiler(loader);
     }
 
     public Class<?> convert(final BaseClass xwikiClass)
     {
+        final String className =
+            JavaClassNameDocumentReferenceSerializer.serializeRef(xwikiClass.getDocumentReference(), null);
+        try {
+            return this.loader.asNativeLoader().loadClass(className);
+        } catch (ClassNotFoundException e) {
+            // Ok then, we'll define it.
+        }
+
         // Generate source
         final StringBuilder sb = new StringBuilder();
         writeClass(xwikiClass, sb);

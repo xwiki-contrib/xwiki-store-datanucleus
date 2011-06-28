@@ -63,14 +63,27 @@ public class DataNucleusPersistableObjectStore
             throw new RuntimeException("Could not reflect nested objects, "
                                        + "is a security manager preventing it?");
         }
-        final PersistenceManager manager = this.factory.getPersistenceManager();
-        final Transaction txn = manager.currentTransaction();
-        txn.begin();
-        for (final PersistableClass pc : classes) {
-            manager.makePersistent(pc);
+        PersistenceManager manager = null;
+        Transaction txn = null;
+        try {
+            manager = this.factory.getPersistenceManager();
+            txn = manager.currentTransaction();
+
+            txn.begin();
+            for (final PersistableClass pc : classes) {
+                manager.makePersistent(pc);
+            }
+            manager.makePersistent(value);
+            txn.commit();
+        } catch (Throwable t) {
+            if (txn != null) {
+                txn.rollback();
+            }
+        } finally {
+            if (manager != null) {
+                manager.close();
+            }
         }
-        manager.makePersistent(value);
-        txn.commit();
     }
 
     public PersistableObject get(final Object key, final String className)
@@ -92,6 +105,7 @@ public class DataNucleusPersistableObjectStore
         } catch (JDOObjectNotFoundException e) {
             return null;
         } finally {
+            manager.close();
             Thread.currentThread().setContextClassLoader(currentLoader);
         }
     }
