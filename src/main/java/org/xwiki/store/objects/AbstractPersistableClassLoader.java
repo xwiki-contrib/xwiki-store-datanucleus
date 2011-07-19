@@ -48,7 +48,7 @@ public abstract class AbstractPersistableClassLoader
 
     public Class<?> loadClass(final String name) throws ClassNotFoundException
     {
-        System.err.println("\n\n\n\n\n\n\n\n\n\n\n\n Attempting to load Class: " + name + "\n\n\n\n\n\n\n\n\n\n\n\n");
+        System.err.println("Attempting to load Class: " + name);
         try {
             return super.loadClass(name);
         } catch (ClassNotFoundException e) {

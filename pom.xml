@@ -75,6 +75,20 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- For attachment storage -->
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-store-filesystem-attachments</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Pointer -->
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-store-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Testing Dependencies -->
 
     <dependency>

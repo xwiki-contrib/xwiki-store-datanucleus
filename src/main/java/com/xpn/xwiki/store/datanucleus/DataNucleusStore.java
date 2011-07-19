@@ -21,10 +21,7 @@
 
 package com.xpn.xwiki.store.datanucleus;
 
-import java.io.IOException;
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Collection;
 
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
@@ -33,38 +30,32 @@ import com.xpn.xwiki.doc.XWikiLink;
 import com.xpn.xwiki.doc.XWikiLock;
 import com.xpn.xwiki.objects.classes.BaseClass;
 import com.xpn.xwiki.store.XWikiStoreInterface;
+import javax.inject.Named;
+import javax.inject.Inject;
 import org.xwiki.component.annotation.Component;
+import org.xwiki.component.phase.Initializable;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryManager;
-
-import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
-import org.xwiki.store.datanucleus.internal.DataNucleusClassLoader;
-import org.xwiki.store.objects.PersistableClassLoader;
-import javax.jdo.JDOHelper;
-import javax.jdo.PersistenceManager;
-import javax.jdo.PersistenceManagerFactory;
-import javax.jdo.Query;
-
-//import org.apache.commons.io.IOUtils;
+import org.xwiki.store.XWikiTransactionProvider;
+import org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider;
 
 
 @Component("datanucleus")
-public class DataNucleusStore implements XWikiStoreInterface
+public class DataNucleusStore implements XWikiStoreInterface, Initializable
 {
-    private final PersistenceManagerFactory factory;
+    @Inject
+    @Named("datanucleus")
+    private XWikiTransactionProvider provider;
 
-    private final DataNucleusPersistableObjectStore objStore;
+    private DataNucleusXWikiDocumentStore docStore;
 
-    private final PersistableClassLoader loader;
+    private DataNucleusSearchEngine search;
 
-    private final DataNucleusXWikiDocumentStore docStore;
-
-    public DataNucleusStore()
+    public void initialize()
     {
-        this.factory = JDOHelper.getPersistenceManagerFactory("Test");
-        this.objStore = new DataNucleusPersistableObjectStore(this.factory);
-        this.loader = new DataNucleusClassLoader(this.factory, this.getClass().getClassLoader());
-        this.docStore = new DataNucleusXWikiDocumentStore(this.loader, this.objStore);
+        this.docStore =
+            new DataNucleusXWikiDocumentStore((XWikiDataNucleusTransactionProvider) this.provider);
+        this.search = new DataNucleusSearchEngine((XWikiDataNucleusTransactionProvider) this.provider);
     }
 
     public void cleanUp(final XWikiContext context)
@@ -129,306 +120,6 @@ public class DataNucleusStore implements XWikiStoreInterface
         throw new RuntimeException("not implemented");
     }
 
-    /*------------------- Search -------------------*/
-
-    public List<String> getTranslationList(final XWikiDocument doc, final XWikiContext unused)
-        throws XWikiException
-    {
-        PersistenceManager manager = null;
-        try {
-            manager = this.factory.getPersistenceManager();
-            final Query query = manager.newQuery(PersistableXWikiDocument.class);
-            query.setFilter("wiki == :wiki && fullName == :name");
-            final Collection<PersistableXWikiDocument> translations =
-                (Collection<PersistableXWikiDocument>) query.execute(doc.getDatabase(), doc.getFullName());
-            final List<String> out = new ArrayList<String>(translations.size());
-            for (final PersistableXWikiDocument translation : translations) {
-                if (translation.language != null && !translation.language.equals("")) {
-                    out.add(translation.language);
-                }
-            }
-            return out;
-        } finally {
-            if (manager != null) {
-                manager.close();
-            }
-        }
-    }
-
-    public List<String> getClassList(final XWikiContext context) throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public int countDocuments(final String wheresql, final XWikiContext context) throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<DocumentReference> searchDocumentReferences(final String wheresql,
-                                                            final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    @Deprecated
-    public List<String> searchDocumentsNames(final String wheresql, final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<DocumentReference> searchDocumentReferences(final String wheresql,
-                                                            final int nb,
-                                                            final int start,
-                                                            final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    @Deprecated
-    public List<String> searchDocumentsNames(final String wheresql,
-                                             final int nb,
-                                             final int start,
-                                             final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<DocumentReference> searchDocumentReferences(final String wheresql,
-                                                            final int nb,
-                                                            final int start,
-                                                            final String selectColumns,
-                                                            final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    @Deprecated
-    public List<String> searchDocumentsNames(final String wheresql,
-                                             final int nb,
-                                             final int start,
-                                             final String selectColumns,
-                                             final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<DocumentReference> searchDocumentReferences(final String parametrizedSqlClause,
-                                                            final int nb,
-                                                            final int start,
-                                                            final List<?> parameterValues,
-                                                            final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    @Deprecated
-    public List<String> searchDocumentsNames(final String parametrizedSqlClause,
-                                             final int nb,
-                                             final int start,
-                                             final List<?> parameterValues,
-                                             final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<DocumentReference> searchDocumentReferences(final String parametrizedSqlClause,
-                                                            final List<?> parameterValues,
-                                                            final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    @Deprecated
-    public List<String> searchDocumentsNames(final String parametrizedSqlClause,
-                                             final List<?> parameterValues,
-                                             final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public int countDocuments(final String parametrizedSqlClause,
-                              final List<?> parameterValues,
-                              final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final int nb,
-                                               final int start,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final boolean customMapping,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final int nb,
-                                               final int start,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final int nb,
-                                               final int start,
-                                               final List<?> parameterValues,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final boolean customMapping,
-                                               final int nb,
-                                               final int start,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql, final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final boolean customMapping,
-                                               final boolean checkRight,
-                                               final int nb,
-                                               final int start,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final List<?> parameterValues,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final boolean customMapping,
-                                               final int nb,
-                                               final int start,
-                                               final List<?> parameterValues,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final int nb,
-                                               final int start,
-                                               final List<?> parameterValues,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiDocument> searchDocuments(final String wheresql,
-                                               final boolean distinctbylanguage,
-                                               final boolean customMapping,
-                                               final boolean checkRight,
-                                               final int nb,
-                                               final int start,
-                                               final List<?> parameterValues,
-                                               final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public <T> List<T> search(final String sql,
-                              final int nb,
-                              final int start,
-                              final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public <T> List<T> search(final String sql,
-                              final int nb,
-                              final int start,
-                              final List<?> parameterValues,
-                              final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public <T> List<T> search(final String sql,
-                              final int nb,
-                              final int start,
-                              final Object[][] whereParams,
-                              final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public <T> List<T> search(final String sql,
-                              final int nb,
-                              final int start,
-                              final Object[][] whereParams,
-                              final List<?> parameterValues,
-                              final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public QueryManager getQueryManager()
-    {
-        throw new RuntimeException("not implemented");
-    }
-
     /*------------------- Multi-wiki -------------------*/
 
     public boolean isWikiNameAvailable(final String wikiName, final XWikiContext context)
@@ -462,7 +153,9 @@ public class DataNucleusStore implements XWikiStoreInterface
     public boolean injectCustomMapping(final BaseClass doc1class, final XWikiContext xWikiContext)
         throws XWikiException
     {
-        throw new RuntimeException("not implemented");
+        // All objects are essentially custom mapped in this schema but there is no need for custom mappings
+        // to be injected on a per load basis so we can pretend that nothing is ever custom mapped.
+        return false;
     }
 
     public boolean injectCustomMappings(final XWikiDocument doc, final XWikiContext context)
@@ -495,10 +188,10 @@ public class DataNucleusStore implements XWikiStoreInterface
         this.docStore.saveXWikiDoc(doc, context);
     }
 
-    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext unused, final boolean ignored)
+    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context, final boolean ignored)
         throws XWikiException
     {
-        this.docStore.saveXWikiDoc(doc, null, false);
+        this.docStore.saveXWikiDoc(doc, context, false);
     }
 
     public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
@@ -516,5 +209,290 @@ public class DataNucleusStore implements XWikiStoreInterface
         throws XWikiException
     {
         this.docStore.deleteXWikiDoc(doc, null);
+    }
+
+    /* ------------------ Search (DataNucleusSearchEngine) ------------------ */
+
+    public List<String> getTranslationList(final XWikiDocument doc, final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.getTranslationList(doc);
+    }
+
+    public List<String> getClassList(final XWikiContext unused) throws XWikiException
+    {
+        return this.search.getClassList();
+    }
+
+    public int countDocuments(final String wheresql, final XWikiContext unused) throws XWikiException
+    {
+        return this.search.countDocuments(wheresql);
+    }
+
+    public List<DocumentReference> searchDocumentReferences(final String wheresql,
+                                                            final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentReferences(wheresql);
+    }
+
+    @Deprecated
+    public List<String> searchDocumentsNames(final String wheresql, final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentsNames(wheresql);
+    }
+
+    public List<DocumentReference> searchDocumentReferences(final String wheresql,
+                                                            final int nb,
+                                                            final int start,
+                                                            final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentReferences(wheresql, nb, start);
+    }
+
+    @Deprecated
+    public List<String> searchDocumentsNames(final String wheresql,
+                                             final int nb,
+                                             final int start,
+                                             final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentsNames(wheresql, nb, start);
+    }
+
+    public List<DocumentReference> searchDocumentReferences(final String wheresql,
+                                                            final int nb,
+                                                            final int start,
+                                                            final String selectColumns,
+                                                            final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentReferences(wheresql, nb, start, selectColumns);
+    }
+
+    @Deprecated
+    public List<String> searchDocumentsNames(final String wheresql,
+                                             final int nb,
+                                             final int start,
+                                             final String selectColumns,
+                                             final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentsNames(wheresql, nb, start, selectColumns);
+    }
+
+    public List<DocumentReference> searchDocumentReferences(final String parametrizedSqlClause,
+                                                            final int nb,
+                                                            final int start,
+                                                            final List<?> parameterValues,
+                                                            final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentReferences(parametrizedSqlClause, nb, start, parameterValues);
+    }
+
+    @Deprecated
+    public List<String> searchDocumentsNames(final String parametrizedSqlClause,
+                                             final int nb,
+                                             final int start,
+                                             final List<?> parameterValues,
+                                             final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentsNames(parametrizedSqlClause, nb, start, parameterValues);
+    }
+
+    public List<DocumentReference> searchDocumentReferences(final String parametrizedSqlClause,
+                                                            final List<?> parameterValues,
+                                                            final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentReferences(parametrizedSqlClause, parameterValues);
+    }
+
+    @Deprecated
+    public List<String> searchDocumentsNames(final String parametrizedSqlClause,
+                                             final List<?> parameterValues,
+                                             final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocumentsNames(parametrizedSqlClause, parameterValues);
+    }
+
+    public int countDocuments(final String parametrizedSqlClause,
+                              final List<?> parameterValues,
+                              final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.countDocuments(parametrizedSqlClause, parameterValues);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final int nb,
+                                               final int start,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, nb, start);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final boolean customMapping,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage, customMapping);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final int nb,
+                                               final int start,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage, nb, start);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final int nb,
+                                               final int start,
+                                               final List<?> parameterValues,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage, nb, start, parameterValues);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final boolean customMapping,
+                                               final int nb,
+                                               final int start,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage, customMapping, nb, start);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql, final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final boolean customMapping,
+                                               final boolean checkRight,
+                                               final int nb,
+                                               final int start,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage, customMapping, checkRight, nb,
+                                           start);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final List<?> parameterValues,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, parameterValues);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final boolean customMapping,
+                                               final int nb,
+                                               final int start,
+                                               final List<?> parameterValues,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage, customMapping, nb, start,
+                                           parameterValues);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final int nb,
+                                               final int start,
+                                               final List<?> parameterValues,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, nb, start, parameterValues);
+    }
+
+    public List<XWikiDocument> searchDocuments(final String wheresql,
+                                               final boolean distinctbylanguage,
+                                               final boolean customMapping,
+                                               final boolean checkRight,
+                                               final int nb,
+                                               final int start,
+                                               final List<?> parameterValues,
+                                               final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.searchDocuments(wheresql, distinctbylanguage, customMapping, checkRight, nb,
+                                           start, parameterValues);
+    }
+
+    public <T> List<T> search(final String sql,
+                              final int nb,
+                              final int start,
+                              final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.search(sql, nb, start);
+    }
+
+    public <T> List<T> search(final String sql,
+                              final int nb,
+                              final int start,
+                              final List<?> parameterValues,
+                              final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.search(sql, nb, start, parameterValues);
+    }
+
+    public <T> List<T> search(final String sql,
+                              final int nb,
+                              final int start,
+                              final Object[][] whereParams,
+                              final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.search(sql, nb, start, whereParams);
+    }
+
+    public <T> List<T> search(final String sql,
+                              final int nb,
+                              final int start,
+                              final Object[][] whereParams,
+                              final List<?> parameterValues,
+                              final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.search.search(sql, nb, start, whereParams, parameterValues);
+    }
+
+    public QueryManager getQueryManager()
+    {
+        return this.search.getQueryManager();
     }
 }

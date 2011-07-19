@@ -34,6 +34,7 @@ import com.xpn.xwiki.objects.classes.BaseClass;
 import javax.jdo.annotations.IdentityType;
 import javax.jdo.annotations.Index;
 import javax.jdo.annotations.NotPersistent;
+import javax.jdo.annotations.Persistent;
 import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.PrimaryKey;
 import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
@@ -54,51 +55,70 @@ public class PersistableXWikiDocument extends PersistableObject
     @Index
     public String name;
 
+    @Persistent
     public String title;
 
     @Index
     public String language;
 
+    @Persistent
     public String defaultLanguage;
 
+    @Persistent
     public int translation;
 
+    @Persistent
     public Date date;
 
+    @Persistent
     public Date contentUpdateDate;
 
+    @Persistent
     public Date creationDate;
 
+    @Persistent
     public String author;
 
+    @Persistent
     public String contentAuthor;
 
+    @Persistent
     public String creator;
 
     @Index
     public String space;
 
+    @Persistent
     public String content;
 
+    @Persistent
     public String version;
 
+    @Persistent
     public String customClass;
 
     @Index
     public String parent;
 
+    @Persistent
     public String xClassXML;
 
+    @Persistent
     public int elements;
 
+    @Persistent
     public String defaultTemplate;
 
+    @Persistent
     public String validationScript;
 
+    @Persistent
     public String comment;
 
+    @Persistent
     public boolean isMinorEdit;
 
+    @Persistent
     public String syntaxId;
 
     @Index
@@ -113,6 +133,7 @@ public class PersistableXWikiDocument extends PersistableObject
     public String[] key;
 
     /** The wiki where this document belongs. */
+    @Persistent
     public String wiki;
 
     /**
@@ -122,6 +143,7 @@ public class PersistableXWikiDocument extends PersistableObject
      * All objects of the same class *should* be consecutive on this list but the code will recover from
      * an out of order situation.
      */
+    @Persistent(serialized="true", defaultFetchGroup="true")
     public List<Object> objects;
 
     /**
@@ -129,13 +151,24 @@ public class PersistableXWikiDocument extends PersistableObject
      * These are needed to convert the Objects back to XWiki objects.
      * The order of these classes determines the order in which the classes will be placed in the map.
      */
+    @Persistent(serialized="true", defaultFetchGroup="true")
     public List<String> objectClassesXML;
 
+    @Persistent(serialized="true", defaultFetchGroup="true")
     public List<PersistableXWikiAttachment> attachments;
 
-    public PersistableXWikiDocument(final XWikiDocument toClone,
-                                    final EntityProvider<XWikiDocument, DocumentReference> provider,
-                                    final PersistableClassLoader loader)
+    public PersistableXWikiDocument()
+    {
+        // do nothing.
+    }
+
+    public PersistableXWikiDocument(final DocumentReference reference, final String language)
+    {
+        this.key = keyGen(reference, language);
+    }
+
+    public void fromXWikiDocument(final XWikiDocument toClone,
+                                  final EntityProvider<XWikiDocument, DocumentReference> provider)
     {
         this.fullName = toClone.getFullName();
         this.name = toClone.getName();
@@ -154,7 +187,12 @@ public class PersistableXWikiDocument extends PersistableObject
         this.version = toClone.getVersion();
         this.customClass = toClone.getCustomClass();
         this.parent = toClone.getParent();
-        this.xClassXML = toClone.getXClassXML();
+
+        // This one is special since XWikiDocument.getXClassXML() does not reflect the current state
+        // Of the XClass but is rather a holding place for the XML.
+        // The storage engine is expected to update it.
+        this.xClassXML = toClone.getXClass().toXMLString();
+
         this.elements = toClone.getElements();
         this.defaultTemplate = toClone.getDefaultTemplate();
         this.validationScript = toClone.getValidationScript();
@@ -173,8 +211,7 @@ public class PersistableXWikiDocument extends PersistableObject
             // If this document has an object which self references
             // then we need to break the chicken/egg cycle.
             // TODO: Loops with more than 2 classes.
-            prov = new EntityProviderWrapper<XWikiDocument, DocumentReference>(provider)
-            {
+            prov = (new EntityProviderWrapper<XWikiDocument, DocumentReference>(provider) {
                 public final BaseClass thisClass = baseClass;
 
                 public final DocumentReference ref = toClone.getDocumentReference();
@@ -182,25 +219,23 @@ public class PersistableXWikiDocument extends PersistableObject
                 public XWikiDocument get(final DocumentReference reference)
                 {
                     if (this.ref.equals(reference)) {
+                        System.err.println("\n\n" + toClone.getXClass().toXMLString() + "\n\n");
                         final XWikiDocument out = new XWikiDocument(this.ref);
                         out.setXClass(baseClass);
                         return out;
                     }
                     return super.get(reference);
                 }
-            };
+            });
         }
 
         this.objectClassesXML = xObjectClassesToXML(toClone.getXObjects().keySet(), prov);
-        this.objects = xObjectsToObjects(toClone.getXObjects(), prov, loader);
+        final PersistableClassLoader pcl =
+            (PersistableClassLoader) Thread.currentThread().getContextClassLoader();
+        this.objects = xObjectsToObjects(toClone.getXObjects(), prov, pcl);
 
         this.key = keyGen(toClone.getDocumentReference(), this.language);
         this.attachments = xAttachmentsToPersistableAttachments(toClone.getAttachmentList());
-    }
-
-    public PersistableXWikiDocument(final DocumentReference reference, final String language)
-    {
-        this.key = keyGen(reference, language);
     }
 
     private static List<Object> xObjectsToObjects(
@@ -219,7 +254,11 @@ public class PersistableXWikiDocument extends PersistableObject
             final Class<?> cls = converter.convert(provider.get(ref).getXClass());
 
             for (final BaseObject obj : list) {
-                out.add(XObjectConverter.convertFromXObject(obj, cls));
+                if (obj == null) {
+                    System.err.println("\n\nA baseobject was null!\n\n");
+                } else {
+                    out.add(XObjectConverter.convertFromXObject(obj, cls));
+                }
             }
         }
         return out;
@@ -236,7 +275,7 @@ public class PersistableXWikiDocument extends PersistableObject
                 throw new RuntimeException("Could not load document for class "
                                             + classRef + " was it deleted?");
             }
-            out.add(doc.getXClassXML());
+            out.add(doc.getXClass().toXMLString());
         }
         return out;
     }
@@ -316,6 +355,15 @@ public class PersistableXWikiDocument extends PersistableObject
 
         out.setDatabase(this.wiki);
 
+        final String cxml = this.xClassXML;
+        if (cxml != null) {
+            try {
+                out.getXClass().fromXML(cxml);
+            } catch (XWikiException e) {
+                throw new RuntimeException("Failed to deserialize xml class", e);
+            }
+        }
+
         try {
             out.setXObjects(objectsToXObjects(
                  this.objects, this.objectClassesXML, out.getDocumentReference()));
@@ -323,12 +371,15 @@ public class PersistableXWikiDocument extends PersistableObject
             if (this.objects == null && this.objectClassesXML == null) {
                 System.err.println("\n\n\n\n\n\n\n" + this.fullName + " has no xobjects right?\n\n\n\n\n");
             } else {
-                throw new NullPointerException("" + this.objects + "  " + this.objectClassesXML);
+                System.err.println("Loading document" + this.fullName + "  " + this.objects + "  " + this.objectClassesXML);
+                throw e;
             }
         }
 
         if (this.attachments != null) {
             out.setAttachmentList(persistableAttachmentsToXWikiAttachments(this.attachments, out));
+        } else {
+            System.err.println("\n\n\n\n\n\n\n" + this.fullName + " has no attachments right?\n\n\n\n\n");
         }
 
         return out;

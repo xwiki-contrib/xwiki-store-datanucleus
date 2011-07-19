@@ -36,15 +36,11 @@ import javax.jdo.JDOObjectNotFoundException;
 
 public class DataNucleusXWikiDocumentProvider implements EntityProvider<XWikiDocument, DocumentReference>
 {
-    private PersistableClassLoader loader;
+    private final PersistenceManager manager;
 
-    private DataNucleusPersistableObjectStore objStore;
-
-    public DataNucleusXWikiDocumentProvider(final PersistableClassLoader loader,
-                                            final DataNucleusPersistableObjectStore objStore)
+    public DataNucleusXWikiDocumentProvider(final PersistenceManager manager)
     {
-        this.loader = loader;
-        this.objStore = objStore;
+        this.manager = manager;
     }
 
     public XWikiDocument get(final DocumentReference reference)
@@ -52,19 +48,12 @@ public class DataNucleusXWikiDocumentProvider implements EntityProvider<XWikiDoc
         final String[] key = PersistableXWikiDocument.keyGen(reference, "");
         System.err.println(">>>>>LOADING! " + Arrays.asList(key));
 
-        final ClassLoader oldLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            Thread.currentThread().setContextClassLoader(this.loader.asNativeLoader());
-            final PersistableXWikiDocument pxd =
-                (PersistableXWikiDocument) this.objStore.get(key, PersistableXWikiDocument.class.getName());
-            return (pxd == null) ? null : pxd.toXWikiDocument();
-        } finally {
-            Thread.currentThread().setContextClassLoader(oldLoader);
-        }
+        final PersistableXWikiDocument pxd = this.manager.getObjectById(PersistableXWikiDocument.class, key);
+        return (pxd == null) ? null : pxd.toXWikiDocument();
     }
 
     public List<XWikiDocument> get(final List<DocumentReference> references)
     {
-        throw new RuntimeException("not implemented");
+        throw new RuntimeException("Not Implemented...............");
     }
 }

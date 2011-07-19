@@ -30,6 +30,11 @@ import javax.jdo.JDOObjectNotFoundException;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
 import javax.jdo.Transaction;
+import javax.jdo.JDOObjectNotFoundException;
+import org.xwiki.store.Pointer;
+import org.xwiki.store.TransactionException;
+import org.xwiki.store.TransactionRunnable;
+import org.xwiki.store.datanucleus.XWikiDataNucleusTransaction;
 import org.xwiki.store.objects.PersistableObject;
 import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.objects.PersistableClassLoader;
@@ -39,75 +44,56 @@ import org.xwiki.store.objects.PersistableClassLoader;
  */
 public class DataNucleusPersistableObjectStore
 {
-    private final PersistenceManagerFactory factory;
-
-    private final ClassLoader classLoader;
-
-    /**
-     * The Constructor.
-     *
-     * @param factory the means of persisting and loading classes.
-     */
-    public DataNucleusPersistableObjectStore(final PersistenceManagerFactory factory)
-    {
-        this.factory = factory;
-        this.classLoader = new DataNucleusClassLoader(factory, this.getClass().getClassLoader());
-    }
-
-    public void put(final PersistableObject value)
+    public TransactionRunnable<XWikiDataNucleusTransaction> getStoreTransactionRunnable(
+        final PersistableObject value)
     {
         final Set<PersistableClass> classes = new HashSet<PersistableClass>();
-        try {
-            getClasses(value, classes, new Stack());
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException("Could not reflect nested objects, "
-                                       + "is a security manager preventing it?");
-        }
-        PersistenceManager manager = null;
-        Transaction txn = null;
-        try {
-            manager = this.factory.getPersistenceManager();
-            txn = manager.currentTransaction();
 
-            txn.begin();
-            for (final PersistableClass pc : classes) {
-                manager.makePersistent(pc);
+        return (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+            protected void onRun()
+            {
+				try {
+				    getClasses(value, classes, new Stack());
+				} catch (IllegalAccessException e) {
+				    throw new RuntimeException("Could not reflect nested objects, "
+				                               + "is a security manager preventing it?");
+				}
+                final PersistenceManager manager = this.getContext().getPersistenceManager();
+                for (final PersistableClass pc : classes) {
+                    if (pc.isDirty()) {
+                        try {
+System.out.println("\n\n\nSTORING CLASS!!! " + pc.getNativeClass().getName() + "    " + pc.getBytes().length + "\n\n\n");
+if ("xwiki.XWiki.StyleSheetExtension".equals(pc.getName())) {
+    System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSTORING CLASS!!! " + pc.getBytes().length + "n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+}
+                        manager.makePersistent(pc);
+                        } catch (Exception e) { }
+                    }
+                }
+                manager.makePersistent(value);
             }
-            manager.makePersistent(value);
-            txn.commit();
-        } catch (Throwable t) {
-            if (txn != null) {
-                txn.rollback();
-            }
-        } finally {
-            if (manager != null) {
-                manager.close();
-            }
-        }
+        });
     }
 
-    public PersistableObject get(final Object key, final String className)
+    public TransactionRunnable<XWikiDataNucleusTransaction> getLoadTransactionRunnable(
+        final Object key,
+        final String className,
+        final Pointer<PersistableObject> outPointer)
     {
-        final PersistenceManager manager = this.factory.getPersistenceManager();
-        final ClassLoader currentLoader = Thread.currentThread().getContextClassLoader();
-        try {
-            Thread.currentThread().setContextClassLoader(this.classLoader);
-            final Class cls;
-            try {
-                cls = (Class<? extends PersistableObject>) Class.forName(className);
-            } catch (ClassNotFoundException ee) {
-                throw new RuntimeException("Could not find the class " + className);
-            } catch (ClassCastException ee) {
-                throw new RuntimeException("The class " + className + " apparently does not "
-                                           + "implement PersistableObject so it cannot be loaded.");
+        return (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+            protected void onRun() throws ClassNotFoundException, ClassCastException
+            {
+                final Class<? extends PersistableObject> cls =
+                    (Class<? extends PersistableObject>) Class.forName(className);
+                final PersistenceManager pm = this.getContext().getPersistenceManager();
+                try {
+                    outPointer.target = pm.getObjectById(cls, key);
+                    pm.makeTransient(outPointer.target);
+                } catch (JDOObjectNotFoundException e) {
+                    // Not found, outPointer is already null so we leave it.
+                }
             }
-            return (PersistableObject) manager.getObjectById(cls, key);
-        } catch (JDOObjectNotFoundException e) {
-            return null;
-        } finally {
-            manager.close();
-            Thread.currentThread().setContextClassLoader(currentLoader);
-        }
+        });
     }
 
     private static void getClasses(final Object value,
@@ -123,7 +109,6 @@ public class DataNucleusPersistableObjectStore
         // We want to store the classes which are not going to be available
         // without a PersistableClassLoader.
         if (value.getClass().getClassLoader() instanceof PersistableClassLoader) {
-System.out.println("        ADDING!!! " + value.getClass().getName());
             out.add(((PersistableObject) value).getPersistableClass());
         } else if (value instanceof Collection) {
             // Check the collection for more persistables.

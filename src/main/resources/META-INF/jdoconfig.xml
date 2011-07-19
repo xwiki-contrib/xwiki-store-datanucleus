@@ -22,6 +22,8 @@
 
     <property name="javax.jdo.option.Optimistic" value="false" />
 
+    <property name="org.datanucleus.cache.collections.lazy" value="false" />
+
     <!-- auto creates keyspace and CF.
          Not recommended for production environments since replication factor and strategy 
          are defaulted to 1 and simple -->

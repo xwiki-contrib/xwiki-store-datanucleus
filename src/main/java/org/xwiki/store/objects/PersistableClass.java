@@ -23,9 +23,10 @@ import java.util.Arrays;
 
 import javax.jdo.annotations.IdentityType;
 import javax.jdo.annotations.Index;
-import javax.jdo.annotations.PersistenceCapable;
-import javax.jdo.annotations.PrimaryKey;
 import javax.jdo.annotations.NotPersistent;
+import javax.jdo.annotations.PersistenceCapable;
+import javax.jdo.annotations.Persistent;
+import javax.jdo.annotations.PrimaryKey;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
 import javax.jdo.JDOObjectNotFoundException;
@@ -45,7 +46,8 @@ public final class PersistableClass<T>
      * The bytecode representation of this class.
      * Package private so that the classloader can access it directly.
      */
-    byte[] bytes;
+    @Persistent
+    public byte[] bytes;
 
     /** The java class which this PersistableClass represents. */
     @NotPersistent

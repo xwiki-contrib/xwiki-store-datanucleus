@@ -138,8 +138,10 @@ public final class XObjectConverter
 
     public static BaseObject convertToXObject(final Object persistable, final BaseClass xwikiClass)
     {
+try {
         final EntityReference docRef =
             JavaClassNameDocumentReferenceSerializer.resolveRef(persistable.getClass().getName(), null);
+} catch (Exception e) { System.err.println("\n\n" + persistable.getClass().getName() + "\n\n"); }
 
         final BaseObject out = new BaseObject();
         out.setXClassReference(xwikiClass.getDocumentReference());
@@ -149,9 +151,10 @@ public final class XObjectConverter
             final String fieldName = JavaIdentifierEscaper.unescape(field.getName());
             final PropertyClass propClass = (PropertyClass) xwikiClass.get(fieldName);
             if (propClass == null) {
+                continue;/*
                 throw new RuntimeException("The Object of type " + persistable.getClass().getName()
                                            + " contains a field " + field.getName() + " which has no "
-                                           + "corrisponding property in the XClass");
+                                           + "corrisponding property in the XClass");*/
             }
 
             final Object fieldValue;

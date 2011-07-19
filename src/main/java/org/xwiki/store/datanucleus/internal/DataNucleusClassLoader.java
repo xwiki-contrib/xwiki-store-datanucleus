@@ -30,7 +30,7 @@ import org.xwiki.store.objects.PersistableClass;
  */
 public class DataNucleusClassLoader extends AbstractPersistableClassLoader
 {
-    private final PersistenceManagerFactory factory;
+    private final ThreadLocal<PersistenceManager> managers = new ThreadLocal<PersistenceManager>();
 
     /**
      * The Constructor.
@@ -38,19 +38,43 @@ public class DataNucleusClassLoader extends AbstractPersistableClassLoader
      * @param factory the means of persisting and loading classes.
      * @param parent the ClassLoader which will be used to try loading before trying to load from storage.
      */
-    public DataNucleusClassLoader(final PersistenceManagerFactory factory, final ClassLoader parent)
+    public DataNucleusClassLoader(final ClassLoader parent)
     {
         super(parent);
-        this.factory = factory;
+    }
+
+    public void setPersistenceManager(final PersistenceManager manager)
+    {
+        this.managers.set(manager);
+    }
+
+    public PersistenceManager removePersistenceManager()
+    {
+        final PersistenceManager out = this.managers.get();
+        this.managers.remove();
+        return out;
     }
 
     protected PersistableClass getClassFromStorage(final String name) throws ClassNotFoundException
     {
-        final PersistenceManager manager = this.factory.getPersistenceManager();
+        final PersistenceManager manager = this.managers.get();
         try {
-            return manager.getObjectById(PersistableClass.class, name);
+            PersistableClass pc = manager.getObjectById(PersistableClass.class, name);
+            if (pc.isDirty()) {
+                System.err.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nLoaded class was dirty!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+                throw new RuntimeException();
+            }
+            if (pc.bytes == null) {
+                System.err.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nLoaded class bytes == null!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+                throw new RuntimeException();
+            }
+            return pc;
         } catch (JDOObjectNotFoundException e) {
             throw new ClassNotFoundException();
+        } catch (NullPointerException e) {
+            throw new NullPointerException("No PersistenceManager was set for this thread, "
+                                           + "is this ClassLoader being used outside of a "
+                                           + "TransactionRunnable?");
         }
     }
 }
