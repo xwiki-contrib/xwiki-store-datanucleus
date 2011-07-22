@@ -1,2 +1,3 @@
+com.xpn.xwiki.store.datanucleus.DataNucleusLinkAndLockStore
 com.xpn.xwiki.store.datanucleus.DataNucleusStore
 org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider

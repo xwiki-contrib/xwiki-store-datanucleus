@@ -101,7 +101,7 @@ public class DataNucleusXWikiDocumentStore
         throws XWikiException
     {
         final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
-        System.err.println(">>>>>LOADING! " + Arrays.asList(key));
+//System.err.println(">>>>>LOADING! " + Arrays.asList(key));
 
         final Pointer<PersistableObject> docPtr = new Pointer<PersistableObject>();
         final TransactionRunnable<XWikiDataNucleusTransaction> loadRunnable =

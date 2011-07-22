@@ -138,11 +138,6 @@ public final class XObjectConverter
 
     public static BaseObject convertToXObject(final Object persistable, final BaseClass xwikiClass)
     {
-try {
-        final EntityReference docRef =
-            JavaClassNameDocumentReferenceSerializer.resolveRef(persistable.getClass().getName(), null);
-} catch (Exception e) { System.err.println("\n\n" + persistable.getClass().getName() + "\n\n"); }
-
         final BaseObject out = new BaseObject();
         out.setXClassReference(xwikiClass.getDocumentReference());
 
@@ -205,8 +200,8 @@ try {
     private static void checkTypeMatch(final Field field, final Class<?> expected, final BaseProperty xProp)
     {
         if (field.getType() != expected) {
-            throw new RuntimeException("Type mismatch, the XObject property " + xProp.getName()
-                                       + " is a " + xProp.getClass().getName() + " which requies a "
+            throw new RuntimeException("Type mismatch, the XObject property '" + xProp.getName()
+                                       + "' is a " + xProp.getClass().getName() + " which requies a "
                                        + expected.getName() + " field type but the field type is a "
                                        + field.getType().getName());
         }

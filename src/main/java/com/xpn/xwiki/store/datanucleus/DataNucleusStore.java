@@ -29,6 +29,7 @@ import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.doc.XWikiLink;
 import com.xpn.xwiki.doc.XWikiLock;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.store.LinkAndLockStore;
 import com.xpn.xwiki.store.XWikiStoreInterface;
 import javax.inject.Named;
 import javax.inject.Inject;
@@ -47,6 +48,10 @@ public class DataNucleusStore implements XWikiStoreInterface, Initializable
     @Named("datanucleus")
     private XWikiTransactionProvider provider;
 
+    @Inject
+    @Named("datanucleus")
+    private LinkAndLockStore linksAndLocks;
+
     private DataNucleusXWikiDocumentStore docStore;
 
     private DataNucleusSearchEngine search;
@@ -61,63 +66,6 @@ public class DataNucleusStore implements XWikiStoreInterface, Initializable
     public void cleanUp(final XWikiContext context)
     {
         // This is a hook for when the system shuts down, nothing is required to be done.
-    }
-
-    /*------------------- Links & Locks -------------------*/
-
-    public XWikiLock loadLock(final long docId, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void saveLock(final XWikiLock lock, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void deleteLock(final XWikiLock lock, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<XWikiLink> loadLinks(final long docId,
-                                     final XWikiContext context,
-                                     final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public List<DocumentReference> loadBacklinks(final DocumentReference documentReference,
-                                                 final boolean bTransaction,
-                                                 final XWikiContext context)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    @Deprecated
-    public List<String> loadBacklinks(final String fullName,
-                                      final XWikiContext context,
-                                      final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void saveLinks(final XWikiDocument doc, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
-    }
-
-    public void deleteLinks(final long docId, final XWikiContext context, final boolean bTransaction)
-        throws XWikiException
-    {
-        throw new RuntimeException("not implemented");
     }
 
     /*------------------- Multi-wiki -------------------*/
@@ -494,5 +442,60 @@ public class DataNucleusStore implements XWikiStoreInterface, Initializable
     public QueryManager getQueryManager()
     {
         return this.search.getQueryManager();
+    }
+
+    /*------------------- Links & Locks -------------------*/
+
+    public XWikiLock loadLock(final long docId, final XWikiContext unused, final boolean ignored)
+        throws XWikiException
+    {
+        return this.linksAndLocks.loadLock(docId);
+    }
+
+    public void saveLock(final XWikiLock lock, final XWikiContext unused, final boolean ignored)
+        throws XWikiException
+    {
+        this.linksAndLocks.saveLock(lock);
+    }
+
+    public void deleteLock(final XWikiLock lock, final XWikiContext unused, final boolean ignored)
+        throws XWikiException
+    {
+        this.linksAndLocks.deleteLock(lock);
+    }
+
+    public List<XWikiLink> loadLinks(final long docId, final XWikiContext unused, final boolean ignored)
+        throws XWikiException
+    {
+        return this.linksAndLocks.loadLinks(docId);
+    }
+
+    public List<DocumentReference> loadBacklinks(final DocumentReference documentReference,
+                                                 final boolean ignored,
+                                                 final XWikiContext unused)
+        throws XWikiException
+    {
+        return this.linksAndLocks.loadBacklinks(documentReference);
+    }
+
+    @Deprecated
+    public List<String> loadBacklinks(final String fullName,
+                                      final XWikiContext unused,
+                                      final boolean ignored)
+        throws XWikiException
+    {
+        return this.linksAndLocks.loadBacklinks(fullName);
+    }
+
+    public void saveLinks(final XWikiDocument doc, final XWikiContext unused, final boolean ignored)
+        throws XWikiException
+    {
+        this.linksAndLocks.saveLinks(doc);
+    }
+
+    public void deleteLinks(final long docId, final XWikiContext unused, final boolean ignored)
+        throws XWikiException
+    {
+        this.linksAndLocks.deleteLinks(docId);
     }
 }

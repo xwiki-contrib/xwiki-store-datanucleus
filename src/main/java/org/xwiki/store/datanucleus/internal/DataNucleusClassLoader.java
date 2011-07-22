@@ -59,16 +59,7 @@ public class DataNucleusClassLoader extends AbstractPersistableClassLoader
     {
         final PersistenceManager manager = this.managers.get();
         try {
-            PersistableClass pc = manager.getObjectById(PersistableClass.class, name);
-            if (pc.isDirty()) {
-                System.err.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nLoaded class was dirty!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-                throw new RuntimeException();
-            }
-            if (pc.bytes == null) {
-                System.err.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nLoaded class bytes == null!\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-                throw new RuntimeException();
-            }
-            return pc;
+            return manager.getObjectById(PersistableClass.class, name);
         } catch (JDOObjectNotFoundException e) {
             throw new ClassNotFoundException();
         } catch (NullPointerException e) {

@@ -32,6 +32,7 @@ import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryManager;
+import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.TransactionException;
 import org.xwiki.store.TransactionRunnable;
 import org.xwiki.store.StartableTransactionRunnable;
@@ -80,7 +81,32 @@ public class DataNucleusSearchEngine
 
     public List<String> getClassList() throws XWikiException
     {
-        throw new RuntimeException("not implemented");
+        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
+        final List<String> out = new ArrayList<String>();
+        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+            protected void onRun()
+            {
+                final PersistenceManager pm = this.getContext().getPersistenceManager();
+                final Query query = pm.newQuery(PersistableClass.class);
+                //query.setFilter("xClassXML != null");
+                final Collection<PersistableClass> classes =
+                    (Collection<PersistableClass>) query.execute();
+
+                for (final PersistableClass klass : classes) {
+                    if (klass.getName().startsWith("xwiki.")) {
+                        out.add(klass.getName());
+                    }
+                }
+            }
+        }).runIn(transaction);
+
+        try {
+            transaction.start();
+        } catch (TransactionException e) {
+            throw new RuntimeException("Failed to get list of XWiki classes.", e);
+        }
+
+        return out;
     }
 
     public int countDocuments(final String wheresql) throws XWikiException

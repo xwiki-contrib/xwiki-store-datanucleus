@@ -24,8 +24,7 @@ import com.xpn.xwiki.objects.classes.PropertyClass;
 import com.xpn.xwiki.objects.BaseProperty;
 import com.xpn.xwiki.objects.LargeStringProperty;
 import com.xpn.xwiki.objects.StringProperty;
-import com.xpn.xwiki.objects.StringListProperty;
-import com.xpn.xwiki.objects.DBStringListProperty;
+import com.xpn.xwiki.objects.ListProperty;
 import com.xpn.xwiki.objects.IntegerProperty;
 import com.xpn.xwiki.objects.FloatProperty;
 import com.xpn.xwiki.objects.DoubleProperty;
@@ -141,8 +140,7 @@ public class XClassConverter
         writeTo.append("\npublic ");
         Class propClass = prop.getClass();
         if (propClass == StringProperty.class
-            || propClass == LargeStringProperty.class
-            || propClass == StringListProperty.class)
+            || propClass == LargeStringProperty.class)
         {
             writeTo.append("String");
 
@@ -152,7 +150,7 @@ public class XClassConverter
         } else if (propClass == DateProperty.class) {
             writeTo.append("Date");
 
-        } else if (propClass == DBStringListProperty.class) {
+        } else if (prop instanceof ListProperty) {
             writeTo.append("List<String>");
 
         } else if (propClass == DoubleProperty.class) {

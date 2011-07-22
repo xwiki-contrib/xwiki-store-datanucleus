@@ -143,7 +143,7 @@ public class PersistableXWikiDocument extends PersistableObject
      * All objects of the same class *should* be consecutive on this list but the code will recover from
      * an out of order situation.
      */
-    @Persistent(serialized="true", defaultFetchGroup="true")
+    @Persistent(embedded="true", embeddedElement="true", defaultFetchGroup="true")
     public List<Object> objects;
 
     /**
@@ -154,7 +154,7 @@ public class PersistableXWikiDocument extends PersistableObject
     @Persistent(serialized="true", defaultFetchGroup="true")
     public List<String> objectClassesXML;
 
-    @Persistent(serialized="true", defaultFetchGroup="true")
+    @Persistent(embedded="true", embeddedElement="true", defaultFetchGroup="true")
     public List<PersistableXWikiAttachment> attachments;
 
     public PersistableXWikiDocument()
@@ -219,7 +219,6 @@ public class PersistableXWikiDocument extends PersistableObject
                 public XWikiDocument get(final DocumentReference reference)
                 {
                     if (this.ref.equals(reference)) {
-                        System.err.println("\n\n" + toClone.getXClass().toXMLString() + "\n\n");
                         final XWikiDocument out = new XWikiDocument(this.ref);
                         out.setXClass(baseClass);
                         return out;

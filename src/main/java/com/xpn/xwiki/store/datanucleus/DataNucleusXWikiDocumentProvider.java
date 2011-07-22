@@ -46,10 +46,12 @@ public class DataNucleusXWikiDocumentProvider implements EntityProvider<XWikiDoc
     public XWikiDocument get(final DocumentReference reference)
     {
         final String[] key = PersistableXWikiDocument.keyGen(reference, "");
-        System.err.println(">>>>>LOADING! " + Arrays.asList(key));
 
-        final PersistableXWikiDocument pxd = this.manager.getObjectById(PersistableXWikiDocument.class, key);
-        return (pxd == null) ? null : pxd.toXWikiDocument();
+        try {
+            return this.manager.getObjectById(PersistableXWikiDocument.class, key).toXWikiDocument();
+        } catch (JDOObjectNotFoundException e) {
+            return null;
+        }
     }
 
     public List<XWikiDocument> get(final List<DocumentReference> references)

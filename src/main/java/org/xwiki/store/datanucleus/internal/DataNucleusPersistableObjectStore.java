@@ -62,10 +62,7 @@ public class DataNucleusPersistableObjectStore
                 for (final PersistableClass pc : classes) {
                     if (pc.isDirty()) {
                         try {
-System.out.println("\n\n\nSTORING CLASS!!! " + pc.getNativeClass().getName() + "    " + pc.getBytes().length + "\n\n\n");
-if ("xwiki.XWiki.StyleSheetExtension".equals(pc.getName())) {
-    System.out.println("\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nSTORING CLASS!!! " + pc.getBytes().length + "n\n\n\n\n\n\n\n\n\n\n\n\n\n");
-}
+System.out.println("STORING CLASS!!! " + pc.getNativeClass().getName() + "    " + pc.getBytes().length);
                         manager.makePersistent(pc);
                         } catch (Exception e) { }
                     }
