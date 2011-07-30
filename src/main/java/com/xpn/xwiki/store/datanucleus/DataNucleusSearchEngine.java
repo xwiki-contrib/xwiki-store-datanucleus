@@ -25,12 +25,18 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.jdo.PersistenceManager;
 import javax.jdo.Query;
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.store.SearchEngine;
+import org.xwiki.component.annotation.Component;
+import org.xwiki.component.phase.Initializable;
 import org.xwiki.model.reference.DocumentReference;
+import org.xwiki.query.QueryException;
 import org.xwiki.query.QueryManager;
 import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.TransactionException;
@@ -38,19 +44,55 @@ import org.xwiki.store.TransactionRunnable;
 import org.xwiki.store.StartableTransactionRunnable;
 import org.xwiki.store.datanucleus.XWikiDataNucleusTransaction;
 import org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider;
+import org.xwiki.store.XWikiTransactionProvider;
 
-public class DataNucleusSearchEngine
+@Component("datanucleus")
+public class DataNucleusSearchEngine implements SearchEngine, Initializable
 {
-    private final XWikiDataNucleusTransactionProvider provider;
+    @Inject
+    private QueryManager queryManager;
 
-    public DataNucleusSearchEngine(final XWikiDataNucleusTransactionProvider provider)
+    /** An XWikiTransactionProvider which is used to load and store the locks and links. */
+    @Inject
+    @Named("datanucleus")
+    private XWikiTransactionProvider genericProvider;
+
+    /** A casted version of genericProvider because the provider must be a DataNucleus provider. */
+    private XWikiDataNucleusTransactionProvider provider;
+
+    /**
+     * {@inheritDoc}
+     *
+     * @see Initializable#initialize()
+     */
+    public void initialize()
     {
-        this.provider = provider;
+        this.provider = (XWikiDataNucleusTransactionProvider) this.genericProvider;
     }
 
     public List<String> getTranslationList(final XWikiDocument doc) throws XWikiException
     {
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
+        final List<String> languages = new ArrayList<String>();
+        final org.xwiki.query.Query q;
+        try {
+            q = this.getQueryManager().getNamedQuery("getTranslationList");
+        } catch (QueryException e) {
+            throw new RuntimeException("Failed to get named query for getting translation list", e);
+        }
+        q.bindValue("wiki", doc.getDatabase()).bindValue("fullname", doc.getFullName());
+        final List<PersistableXWikiDocument> translations;
+        try {
+            translations = (List<PersistableXWikiDocument>) (List) q.execute();
+        } catch (QueryException e) {
+            throw new RuntimeException("Failed to execute query for getting translation list", e);
+        }
+        for (final PersistableXWikiDocument translation : translations) {
+            if (translation.language != null && !translation.language.equals("")) {
+                languages.add(translation.language);
+            }
+        }
+
+        /*final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
         final List<String> languages = new ArrayList<String>();
         (new TransactionRunnable<XWikiDataNucleusTransaction>() {
             protected void onRun()
@@ -74,7 +116,7 @@ public class DataNucleusSearchEngine
             transaction.start();
         } catch (TransactionException e) {
             throw new RuntimeException("Failed to get translations to document", e);
-        }
+        }*/
 
         return languages;
     }
@@ -350,6 +392,6 @@ public class DataNucleusSearchEngine
 
     public QueryManager getQueryManager()
     {
-        throw new RuntimeException("not implemented");
+        return this.queryManager;
     }
 }

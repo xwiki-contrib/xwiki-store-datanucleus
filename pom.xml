@@ -89,6 +89,13 @@
       <version>${project.version}</version>
     </dependency>
 
+    <!-- XWikiTransactionProvider -->
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-store-legacy</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
     <!-- Testing Dependencies -->
 
     <dependency>

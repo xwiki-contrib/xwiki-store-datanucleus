@@ -31,6 +31,7 @@ import com.xpn.xwiki.doc.XWikiLock;
 import com.xpn.xwiki.objects.classes.BaseClass;
 import com.xpn.xwiki.store.LinkAndLockStore;
 import com.xpn.xwiki.store.XWikiStoreInterface;
+import com.xpn.xwiki.store.SearchEngine;
 import javax.inject.Named;
 import javax.inject.Inject;
 import org.xwiki.component.annotation.Component;
@@ -52,15 +53,16 @@ public class DataNucleusStore implements XWikiStoreInterface, Initializable
     @Named("datanucleus")
     private LinkAndLockStore linksAndLocks;
 
-    private DataNucleusXWikiDocumentStore docStore;
+    @Inject
+    @Named("datanucleus")
+    private SearchEngine search;
 
-    private DataNucleusSearchEngine search;
+    private DataNucleusXWikiDocumentStore docStore;
 
     public void initialize()
     {
         this.docStore =
             new DataNucleusXWikiDocumentStore((XWikiDataNucleusTransactionProvider) this.provider);
-        this.search = new DataNucleusSearchEngine((XWikiDataNucleusTransactionProvider) this.provider);
     }
 
     public void cleanUp(final XWikiContext context)

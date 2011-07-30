@@ -82,6 +82,11 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializa
     /** A casted version of genericProvider because the provider must be a DataNucleus provider. */
     private XWikiDataNucleusTransactionProvider provider;
 
+    /**
+     * {@inheritDoc}
+     *
+     * @see Initializable#initialize()
+     */
     public void initialize()
     {
         this.provider = (XWikiDataNucleusTransactionProvider) this.genericProvider;
