@@ -31,10 +31,8 @@ import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
 import javax.jdo.Transaction;
 import javax.jdo.JDOObjectNotFoundException;
-import org.xwiki.store.Pointer;
 import org.xwiki.store.TransactionException;
 import org.xwiki.store.TransactionRunnable;
-import org.xwiki.store.datanucleus.XWikiDataNucleusTransaction;
 import org.xwiki.store.objects.PersistableObject;
 import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.objects.PersistableClassLoader;
@@ -44,26 +42,26 @@ import org.xwiki.store.objects.PersistableClassLoader;
  */
 public class DataNucleusPersistableObjectStore
 {
-    public TransactionRunnable<XWikiDataNucleusTransaction> getStoreTransactionRunnable(
+    public TransactionRunnable<PersistenceManager> getStoreTransactionRunnable(
         final PersistableObject value)
     {
         final Set<PersistableClass> classes = new HashSet<PersistableClass>();
 
-        return (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        return (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-				try {
-				    getClasses(value, classes, new Stack());
-				} catch (IllegalAccessException e) {
-				    throw new RuntimeException("Could not reflect nested objects, "
-				                               + "is a security manager preventing it?");
-				}
-                final PersistenceManager manager = this.getContext().getPersistenceManager();
+                try {
+                    getClasses(value, classes, new Stack());
+                } catch (IllegalAccessException e) {
+                    throw new RuntimeException("Could not reflect nested objects, "
+                                               + "is a security manager preventing it?");
+                }
+                final PersistenceManager manager = this.getContext();
                 for (final PersistableClass pc : classes) {
                     if (pc.isDirty()) {
                         try {
 System.out.println("STORING CLASS!!! " + pc.getNativeClass().getName() + "    " + pc.getBytes().length);
-                        manager.makePersistent(pc);
+                            manager.makePersistent(pc);
                         } catch (Exception e) { }
                     }
                 }
@@ -72,22 +70,30 @@ System.out.println("STORING CLASS!!! " + pc.getNativeClass().getName() + "    " 
         });
     }
 
-    public TransactionRunnable<XWikiDataNucleusTransaction> getLoadTransactionRunnable(
-        final Object key,
+    public TransactionRunnable<PersistenceManager> getLoadTransactionRunnable(
+        final Collection<Object> keys,
         final String className,
-        final Pointer<PersistableObject> outPointer)
+        final Collection<PersistableObject> outputs)
     {
-        return (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        return (new TransactionRunnable<PersistenceManager>() {
             protected void onRun() throws ClassNotFoundException, ClassCastException
             {
-                final Class<? extends PersistableObject> cls =
-                    (Class<? extends PersistableObject>) Class.forName(className);
-                final PersistenceManager pm = this.getContext().getPersistenceManager();
+                final Class cls = Class.forName(className);
+                final PersistenceManager pm = this.getContext();
+
+                final Object[] oids = new Object[keys.size()];
+                int i = 0;
+                for (final Object key : keys) {
+                    oids[i++] = pm.newObjectIdInstance(cls, key);
+                }
+
                 try {
-                    outPointer.target = pm.getObjectById(cls, key);
-                    pm.makeTransient(outPointer.target);
+                    for (final Object obj : pm.getObjectsById(oids, true)) {
+                        pm.makeTransient(obj);
+                        outputs.add((PersistableObject) obj);
+                    }
                 } catch (JDOObjectNotFoundException e) {
-                    // Not found, outPointer is already null so we leave it.
+                    // Not found.
                 }
             }
         });

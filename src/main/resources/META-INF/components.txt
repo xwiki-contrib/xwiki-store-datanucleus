@@ -1,6 +1,7 @@
 com.xpn.xwiki.store.datanucleus.DataNucleusLinkAndLockStore
 com.xpn.xwiki.store.datanucleus.DataNucleusSearchEngine
+com.xpn.xwiki.store.datanucleus.DataNucleusXWikiDocumentStore
 com.xpn.xwiki.store.datanucleus.DataNucleusStore
-org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider
+org.xwiki.store.datanucleus.internal.DataNucleusTransactionProvider
 org.xwiki.store.datanucleus.internal.query.DataNucleusQueryExecutor
 org.xwiki.store.datanucleus.internal.query.JdoqlQueryExecutor

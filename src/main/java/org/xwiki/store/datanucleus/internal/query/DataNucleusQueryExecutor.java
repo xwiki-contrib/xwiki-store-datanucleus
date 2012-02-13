@@ -42,9 +42,7 @@ import org.xwiki.query.QueryExecutor;
 import org.xwiki.store.TransactionException;
 import org.xwiki.store.TransactionRunnable;
 import org.xwiki.store.StartableTransactionRunnable;
-import org.xwiki.store.datanucleus.XWikiDataNucleusTransaction;
-import org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider;
-import org.xwiki.store.XWikiTransactionProvider;
+import org.xwiki.store.TransactionProvider;
 
 /**
  * Default QueryExecutor for DataNucleus, uses JDOQL.
@@ -52,27 +50,20 @@ import org.xwiki.store.XWikiTransactionProvider;
  * @version $Id$
  * @since 3.2M2
  */
-@Component("datanucleus")
+@Component
+@Named("datanucleus")
 public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
 {
     private final Map<String, String> namedQuerySyntaxByName = new HashMap<String, String>();
 
-    /** An XWikiTransactionProvider which is used to get transactions run queries in. */
+    /** A TransactionProvider which is used to get transactions run queries in. */
     @Inject
     @Named("datanucleus")
-    private XWikiTransactionProvider genericProvider;
+    private TransactionProvider<PersistenceManager> provider;
 
-    /** A casted version of genericProvider because the provider must be a DataNucleus provider. */
-    private XWikiDataNucleusTransactionProvider provider;
-
-    /**
-     * {@inheritDoc}
-     *
-     * @see Initializable#initialize()
-     */
+    @Override
     public void initialize() throws InitializationException
     {
-        this.provider = (XWikiDataNucleusTransactionProvider) this.genericProvider;
         try {
             final GroovyClassLoader gcl = new GroovyClassLoader();
             final URL fileURL = this.getClass().getResource("/DataNucleusNamedQueries.groovy");
@@ -96,30 +87,36 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
      */
     public <T> List<T> execute(final Query query) throws QueryException
     {
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
         final List<T> out = new ArrayList<T>();
-        final String statement = (query.isNamed()) ?
-            this.namedQuerySyntaxByName.get(query.getStatement()) : query.getStatement();
+        final String statement = (query.isNamed())
+            ? this.namedQuerySyntaxByName.get(query.getStatement())
+            : query.getStatement();
 
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final PersistenceManager pm = this.getContext().getPersistenceManager();
-                final javax.jdo.Query jdoQuery = pm.newQuery(statement);
+                final javax.jdo.Query jdoQuery = this.getContext().newQuery(statement);
 
-                long rangeEnd = (query.getLimit() > 0) ?
-                    query.getLimit() + query.getOffset() : Long.MAX_VALUE;
-                jdoQuery.setRange(query.getOffset(), rangeEnd);
+                if (query.getLimit() > 0 || query.getOffset() > 0) {
+                    long rangeEnd = (query.getLimit() > 0) ?
+                        query.getLimit() + query.getOffset() : Long.MAX_VALUE;
+                    jdoQuery.setRange(query.getOffset(), rangeEnd);
+                }
 
                 // Add parameters, it makes no sense for there to be both positional and named parameters
                 // and JDO doesn't allow it anyway so it's named unless positional is larger than 0.
+                final Collection collection;
                 if (query.getPositionalParameters().size() > 0) {
                     final Object[] params =
                         DataNucleusQueryExecutor.arrayForPositionalParameters(
                             query.getPositionalParameters());
-                    out.addAll((Collection<T>) jdoQuery.executeWithArray(params));
+                    collection = (Collection) jdoQuery.executeWithArray(params);
                 } else {
-                    out.addAll((Collection<T>) jdoQuery.executeWithMap(query.getNamedParameters()));
+                    collection = (Collection) jdoQuery.executeWithMap(query.getNamedParameters());
+                }
+                if (collection != null) {
+                    out.addAll((Collection<T>) collection);
                 }
             }
         }).runIn(transaction);
@@ -127,6 +124,7 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
         try {
             transaction.start();
         } catch (TransactionException e) {
+e.printStackTrace();
             throw new QueryException("Failed to run JDOQL query with statement: ["
                                      + statement + "]", query, e);
         }

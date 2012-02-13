@@ -17,29 +17,29 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.store.datanucleus;
+package com.xpn.xwiki.store;
 
-import javax.jdo.PersistenceManager;
-import org.xwiki.store.XWikiTransaction;
+import com.xpn.xwiki.XWikiContext;
+import com.xpn.xwiki.XWikiException;
+import com.xpn.xwiki.doc.XWikiDocument;
+import org.xwiki.component.annotation.ComponentRole;
 
-/**
- * A means of supplying the PersistanceManager to code running inside of
- * TransactionRunnables based on DataNucleus transactions.
- *
- * @version $Id$
- * @since 3.2M1
- */
-public class XWikiDataNucleusTransaction implements XWikiTransaction
+@ComponentRole
+public interface XWikiDocumentStore
 {
-    private final PersistenceManager manager;
+    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context)
+        throws XWikiException;
 
-    public XWikiDataNucleusTransaction(final PersistenceManager manager)
-    {
-        this.manager = manager;
-    }
+    public void saveXWikiDoc(final XWikiDocument doc,
+                             final XWikiContext context,
+                             final boolean ignored)
+        throws XWikiException;
 
-    public PersistenceManager getPersistenceManager()
-    {
-        return this.manager;
-    }
+    public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
+        throws XWikiException;
+
+    public boolean exists(final XWikiDocument doc, final XWikiContext unused) throws XWikiException;
+
+    public void deleteXWikiDoc(final XWikiDocument doc, final XWikiContext context)
+        throws XWikiException;
 }

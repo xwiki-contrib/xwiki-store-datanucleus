@@ -16,9 +16,7 @@
  * License along with this software; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
- *
  */
-
 package com.xpn.xwiki.store.datanucleus;
 
 import java.util.List;
@@ -31,23 +29,24 @@ import com.xpn.xwiki.doc.XWikiLock;
 import com.xpn.xwiki.objects.classes.BaseClass;
 import com.xpn.xwiki.store.LinkAndLockStore;
 import com.xpn.xwiki.store.XWikiStoreInterface;
+import com.xpn.xwiki.store.XWikiDocumentStore;
 import com.xpn.xwiki.store.SearchEngine;
 import javax.inject.Named;
 import javax.inject.Inject;
+import javax.jdo.PersistenceManager;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.component.phase.Initializable;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryManager;
-import org.xwiki.store.XWikiTransactionProvider;
-import org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider;
+import org.xwiki.store.TransactionProvider;
 
 
-@Component("datanucleus")
-public class DataNucleusStore implements XWikiStoreInterface, Initializable
+@Component
+@Named("datanucleus")
+public class DataNucleusStore implements XWikiStoreInterface
 {
     @Inject
     @Named("datanucleus")
-    private XWikiTransactionProvider provider;
+    private TransactionProvider<PersistenceManager> provider;
 
     @Inject
     @Named("datanucleus")
@@ -57,13 +56,9 @@ public class DataNucleusStore implements XWikiStoreInterface, Initializable
     @Named("datanucleus")
     private SearchEngine search;
 
-    private DataNucleusXWikiDocumentStore docStore;
-
-    public void initialize()
-    {
-        this.docStore =
-            new DataNucleusXWikiDocumentStore((XWikiDataNucleusTransactionProvider) this.provider);
-    }
+    @Inject
+    @Named("datanucleus")
+    private XWikiDocumentStore docStore;
 
     public void cleanUp(final XWikiContext context)
     {

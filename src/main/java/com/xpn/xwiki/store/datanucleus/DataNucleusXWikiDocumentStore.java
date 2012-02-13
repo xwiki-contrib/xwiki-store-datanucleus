@@ -16,82 +16,86 @@
  * License along with this software; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
- *
  */
-
 package com.xpn.xwiki.store.datanucleus;
 
-import java.util.Arrays;
+import java.util.List;
+import java.util.Arrays;//testing only
+import java.util.ArrayList;
 
 import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
-import com.xpn.xwiki.store.FilesystemAttachmentStore;
+import com.xpn.xwiki.store.XWikiDocumentStore;
+import javax.inject.Inject;
+import javax.inject.Named;
+import javax.jdo.PersistenceManager;
+import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.DocumentReference;
+import org.xwiki.store.attachments.newstore.internal.AttachmentContentStore;
 import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
-import org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider;
-import org.xwiki.store.datanucleus.XWikiDataNucleusTransaction;
 import org.xwiki.store.EntityProvider;
 import org.xwiki.store.objects.PersistableObject;
-import org.xwiki.store.Pointer;
 import org.xwiki.store.StartableTransactionRunnable;
 import org.xwiki.store.TransactionException;
+import org.xwiki.store.TransactionProvider;
 import org.xwiki.store.TransactionRunnable;
 
-
-public class DataNucleusXWikiDocumentStore
+@Component
+@Named("datanucleus")
+public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
 {
-    private final DataNucleusPersistableObjectStore objStore;
+    private final DataNucleusPersistableObjectStore objStore =
+        new DataNucleusPersistableObjectStore();
 
-    private final XWikiDataNucleusTransactionProvider provider;
+    @Inject
+    @Named("datanucleus")
+    private TransactionProvider<PersistenceManager> provider;
 
-    public DataNucleusXWikiDocumentStore(final XWikiDataNucleusTransactionProvider provider)
+    @Inject
+    @Named("file")
+    private AttachmentContentStore attachContentStore;
+
+    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context)
+        throws XWikiException
     {
-        this.objStore = new DataNucleusPersistableObjectStore();
-        this.provider = provider;
-    }
-
-    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context) throws XWikiException
-    {
-        final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
+        final String[] key =
+            PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
         System.err.println(">>>>>STORING! " + Arrays.asList(key));
 
         final PersistableXWikiDocument pxd = new PersistableXWikiDocument();
-        final TransactionRunnable<XWikiDataNucleusTransaction> storeRunnable =
+        final TransactionRunnable<PersistenceManager> storeRunnable =
             this.objStore.getStoreTransactionRunnable(pxd);
 
         // Conversion from XWikiDocument to PersistableXWikiDocument must be done
         // after the thread context ClassLoader has been switched.
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onPreRun()
             {
-                final EntityProvider<XWikiDocument, DocumentReference> provider =
-                    new DataNucleusXWikiDocumentProvider(this.getContext().getPersistenceManager());
-                pxd.fromXWikiDocument(doc, provider);
+                pxd.fromXWikiDocument(doc, new DataNucleusXWikiDocumentProvider(this.getContext()));
             }
         }).runIn(storeRunnable);
 
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
         storeRunnable.runIn(transaction);
+
+        for (final XWikiAttachment attach : doc.getAttachmentList()) {
+            if (attach.isContentDirty()) {
+                this.attachContentStore.getAttachmentContentLoadRunnable(attach).runIn(transaction);
+            }
+        }
 
         try {
             transaction.start();
         } catch (TransactionException e) {
             throw new RuntimeException("Failed to store XWikiDocument " + doc, e);
         }
-
-        // TODO: Transaction Safety!
-        for (final XWikiAttachment attach : doc.getAttachmentList()) {
-            if (attach.isContentDirty()) {
-                final FilesystemAttachmentStore fas =
-                    ((FilesystemAttachmentStore) context.getWiki().getAttachmentStore());
-                fas.saveAttachmentContent(attach, false, context, false);
-            }
-        }
     }
 
-    public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context, final boolean ignored)
+    public void saveXWikiDoc(final XWikiDocument doc,
+                             final XWikiContext context,
+                             final boolean ignored)
         throws XWikiException
     {
         this.saveXWikiDoc(doc, context);
@@ -100,14 +104,16 @@ public class DataNucleusXWikiDocumentStore
     public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
         throws XWikiException
     {
-        final String[] key = PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
+        final String[] key =
+            PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
 //System.err.println(">>>>>LOADING! " + Arrays.asList(key));
 
-        final Pointer<PersistableObject> docPtr = new Pointer<PersistableObject>();
-        final TransactionRunnable<XWikiDataNucleusTransaction> loadRunnable =
-            this.objStore.getLoadTransactionRunnable(key, PersistableXWikiDocument.class.getName(), docPtr);
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        loadRunnable.runIn(transaction);
+        final List<PersistableObject> out = new ArrayList<PersistableObject>(1);
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
+
+        this.objStore.getLoadTransactionRunnable(new ArrayList<Object>() { { add(key); } },
+                                                 PersistableXWikiDocument.class.getName(),
+                                                 out).runIn(transaction);
 
         try {
             transaction.start();
@@ -115,8 +121,7 @@ public class DataNucleusXWikiDocumentStore
             throw new RuntimeException("Failed to load document " + Arrays.asList(key), e);
         }
 
-        return (docPtr.target == null) ?
-            doc : ((PersistableXWikiDocument) docPtr.target).toXWikiDocument();
+        return (out.size() > 0) ? doc : ((PersistableXWikiDocument) out.get(0)).toXWikiDocument();
     }
 
     public boolean exists(final XWikiDocument doc, final XWikiContext unused) throws XWikiException
@@ -124,7 +129,8 @@ public class DataNucleusXWikiDocumentStore
         return !this.loadXWikiDoc(doc, null).isNew();
     }
 
-    public void deleteXWikiDoc(final XWikiDocument doc, final XWikiContext context) throws XWikiException
+    public void deleteXWikiDoc(final XWikiDocument doc, final XWikiContext context)
+        throws XWikiException
     {
         throw new RuntimeException("not implemented");
     }

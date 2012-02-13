@@ -16,9 +16,7 @@
  * License along with this software; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
- *
  */
-
 package com.xpn.xwiki.store.datanucleus;
 
 import java.util.ArrayList;
@@ -34,7 +32,6 @@ import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.store.SearchEngine;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.component.phase.Initializable;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryException;
 import org.xwiki.query.QueryManager;
@@ -42,12 +39,11 @@ import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.TransactionException;
 import org.xwiki.store.TransactionRunnable;
 import org.xwiki.store.StartableTransactionRunnable;
-import org.xwiki.store.datanucleus.XWikiDataNucleusTransaction;
-import org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider;
-import org.xwiki.store.XWikiTransactionProvider;
+import org.xwiki.store.TransactionProvider;
 
-@Component("datanucleus")
-public class DataNucleusSearchEngine implements SearchEngine, Initializable
+@Component
+@Named("datanucleus")
+public class DataNucleusSearchEngine implements SearchEngine
 {
     @Inject
     private QueryManager queryManager;
@@ -55,20 +51,7 @@ public class DataNucleusSearchEngine implements SearchEngine, Initializable
     /** An XWikiTransactionProvider which is used to load and store the locks and links. */
     @Inject
     @Named("datanucleus")
-    private XWikiTransactionProvider genericProvider;
-
-    /** A casted version of genericProvider because the provider must be a DataNucleus provider. */
-    private XWikiDataNucleusTransactionProvider provider;
-
-    /**
-     * {@inheritDoc}
-     *
-     * @see Initializable#initialize()
-     */
-    public void initialize()
-    {
-        this.provider = (XWikiDataNucleusTransactionProvider) this.genericProvider;
-    }
+    private TransactionProvider<PersistenceManager> provider;
 
     public List<String> getTranslationList(final XWikiDocument doc) throws XWikiException
     {
@@ -123,13 +106,12 @@ public class DataNucleusSearchEngine implements SearchEngine, Initializable
 
     public List<String> getClassList() throws XWikiException
     {
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
         final List<String> out = new ArrayList<String>();
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final PersistenceManager pm = this.getContext().getPersistenceManager();
-                final Query query = pm.newQuery(PersistableClass.class);
+                final Query query = this.getContext().newQuery(PersistableClass.class);
                 //query.setFilter("xClassXML != null");
                 final Collection<PersistableClass> classes =
                     (Collection<PersistableClass>) query.execute();

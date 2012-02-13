@@ -16,9 +16,7 @@
  * License along with this software; if not, write to the Free
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
- *
  */
-
 package com.xpn.xwiki.store.datanucleus;
 
 import java.util.ArrayList;
@@ -38,22 +36,20 @@ import com.xpn.xwiki.doc.XWikiLock;
 import org.xwiki.rendering.syntax.Syntax;
 import com.xpn.xwiki.store.LinkAndLockStore;
 import org.xwiki.component.annotation.Component;
-import org.xwiki.component.phase.Initializable;
 import org.xwiki.context.Execution;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.DocumentReferenceResolver;
 import org.xwiki.model.reference.EntityReferenceSerializer;
 import org.xwiki.store.objects.PersistableObject;
-import org.xwiki.store.Pointer;
 import org.xwiki.store.TransactionException;
 import org.xwiki.store.TransactionRunnable;
 import org.xwiki.store.StartableTransactionRunnable;
-import org.xwiki.store.datanucleus.XWikiDataNucleusTransaction;
-import org.xwiki.store.datanucleus.internal.XWikiDataNucleusTransactionProvider;
-import org.xwiki.store.XWikiTransactionProvider;
+import org.xwiki.store.datanucleus.DataNucleusTransaction;
+import org.xwiki.store.TransactionProvider;
+import org.xwiki.store.UnexpectedException;
 
 @Component("datanucleus")
-public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializable
+public class DataNucleusLinkAndLockStore implements LinkAndLockStore
 {
     /**
      * Used to resolve a string into a proper Document Reference using the current document's
@@ -74,40 +70,26 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializa
     @Inject
     private Execution execution;
 
-    /** An XWikiTransactionProvider which is used to load and store the locks and links. */
+    /** A TransactionProvider which is used to load and store the locks and links. */
     @Inject
     @Named("datanucleus")
-    private XWikiTransactionProvider genericProvider;
-
-    /** A casted version of genericProvider because the provider must be a DataNucleus provider. */
-    private XWikiDataNucleusTransactionProvider provider;
-
-    /**
-     * {@inheritDoc}
-     *
-     * @see Initializable#initialize()
-     */
-    public void initialize()
-    {
-        this.provider = (XWikiDataNucleusTransactionProvider) this.genericProvider;
-    }
+    private TransactionProvider<PersistenceManager> provider;
 
     /* -------------------------- Locks -------------------------- */
 
     public XWikiLock loadLock(final long docId)
     {
-        final Pointer<PersistableXWikiLock> outPointer =
-            new Pointer<PersistableXWikiLock>();
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        final PersistableXWikiLock[] out = new PersistableXWikiLock[1];
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final PersistenceManager pm = this.getContext().getPersistenceManager();
+                final PersistenceManager pm = this.getContext();
                 try {
-                    outPointer.target = pm.getObjectById(PersistableXWikiLock.class, docId);
-                    pm.makeTransient(outPointer.target);
+                    out[0] = pm.getObjectById(PersistableXWikiLock.class, docId);
+                    pm.makeTransient(out[0]);
                 } catch (JDOObjectNotFoundException e) {
-                    // Not found, outPointer is already null so we leave it.
+                    // Not found, out[0] is already null so we leave it.
                 }
             }
         }).runIn(transaction);
@@ -115,42 +97,42 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializa
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to get lock for document", e);
+            throw new UnexpectedException("Failed to get lock for document", e);
         }
 
-        return outPointer.target == null ? null : outPointer.target.toXWikiLock();
+        return out[0] == null ? null : out[0].toXWikiLock();
     }
 
     public void saveLock(final XWikiLock lock)
     {
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                this.getContext().getPersistenceManager().makePersistent(new PersistableXWikiLock(lock));
+                this.getContext().makePersistent(new PersistableXWikiLock(lock));
             }
         }).runIn(transaction);
 
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to store lock for document", e);
+            throw new UnexpectedException("Failed to store lock for document", e);
         }
     }
 
     public void deleteLock(final XWikiLock lock)
     {
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final PersistenceManager pm = this.getContext().getPersistenceManager();
+                final PersistenceManager pm = this.getContext();
                 try {
                     final PersistableXWikiLock plock =
                         pm.getObjectById(PersistableXWikiLock.class, lock.getDocId());
                     pm.deletePersistent(plock);
                 } catch (JDOObjectNotFoundException e) {
-                    // Not found, outPointer is already null so we leave it.
+                    // Can't delete what isn't there.
                 }
             }
         }).runIn(transaction);
@@ -158,7 +140,7 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializa
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to delete lock for document", e);
+            throw new UnexpectedException("Failed to delete lock for document", e);
         }
     }
 
@@ -166,23 +148,18 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializa
 
     public List<XWikiLink> loadLinks(final long docId)
     {
-        final Pointer<Collection<PersistableXWikiLink>> linksPointer =
-            new Pointer<Collection<PersistableXWikiLink>>();
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        this.getLoadPersistableLinksRunnable(docId, linksPointer).runIn(transaction);
+        final Collection<PersistableXWikiLink> links = new ArrayList<PersistableXWikiLink>();
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
+        this.getLoadPersistableLinksRunnable(docId, links).runIn(transaction);
 
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to get forward-links", e);
+            throw new UnexpectedException("Failed to get forward-links", e);
         }
 
-        if (linksPointer.target == null) {
-            return new ArrayList<XWikiLink>();
-        }
-
-        final List<XWikiLink> out = new ArrayList<XWikiLink>(linksPointer.target.size());
-        for (final PersistableXWikiLink link : linksPointer.target) {
+        final List<XWikiLink> out = new ArrayList<XWikiLink>(links.size());
+        for (final PersistableXWikiLink link : links) {
             out.add(link.toXWikiLink());
         }
 
@@ -192,27 +169,25 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializa
     public List<DocumentReference> loadBacklinks(final DocumentReference documentReference)
     {
         final String docName = this.localEntityReferenceSerializer.serialize(documentReference);
-        final Pointer<Collection<PersistableXWikiLink>> linksPointer =
-            new Pointer<Collection<PersistableXWikiLink>>();
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        final Collection<PersistableXWikiLink> links = new ArrayList<PersistableXWikiLink>();
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final PersistenceManager pm = this.getContext().getPersistenceManager();
-                final Query query = pm.newQuery(PersistableXWikiLink.class);
+                final Query query = this.getContext().newQuery(PersistableXWikiLink.class);
                 query.setFilter("link == :link");
-                linksPointer.target = (Collection<PersistableXWikiLink>) query.execute(docName);
+                links.addAll((Collection<PersistableXWikiLink>) query.execute(docName));
             }
         }).runIn(transaction);
 
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to get backlinks", e);
+            throw new UnexpectedException("Failed to get backlinks", e);
         }
 
-        final List<DocumentReference> out = new ArrayList<DocumentReference>(linksPointer.target.size());
-        for (final PersistableXWikiLink link : linksPointer.target) {
+        final List<DocumentReference> out = new ArrayList<DocumentReference>(links.size());
+        for (final PersistableXWikiLink link : links) {
             out.add(this.currentMixedDocumentReferenceResolver.resolve(link.fullName));
         }
 
@@ -241,70 +216,70 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore, Initializa
             return;
         }
 
-        final XWikiContext context = (XWikiContext) this.execution.getContext().getProperty("xwikicontext");
+        final XWikiContext context =
+            (XWikiContext) this.execution.getContext().getProperty("xwikicontext");
         final Collection<XWikiLink> links;
         try {
             links = doc.getUniqueWikiLinkedPages(context);
         } catch (XWikiException e) {
-            throw new RuntimeException(e);
+            throw new UnexpectedException("Failed to get links from document", e);
         }
         final List<PersistableXWikiLink> toStore = new ArrayList<PersistableXWikiLink>(links.size());
         for (final XWikiLink link : links) {
             toStore.add(new PersistableXWikiLink(link));
         }
 
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        (new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
+        (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                this.getContext().getPersistenceManager().makePersistentAll(toStore);
+                this.getContext().makePersistentAll(toStore);
             }
         }).runIn(transaction);
 
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to store backlinks", e);
+            throw new UnexpectedException("Failed to store backlinks", e);
         }
     }
 
     public void deleteLinks(final long docId)
     {
-        final Pointer<Collection<PersistableXWikiLink>> linksPointer =
-            new Pointer<Collection<PersistableXWikiLink>>();
-        final StartableTransactionRunnable<XWikiDataNucleusTransaction> transaction = this.provider.get();
-        final TransactionRunnable<XWikiDataNucleusTransaction> getLinksRunnable =
-            this.getLoadPersistableLinksRunnable(docId, linksPointer);
+        final Collection<PersistableXWikiLink> links = new ArrayList<PersistableXWikiLink>();
+        final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
 
-        final TransactionRunnable<XWikiDataNucleusTransaction> deleteLinksRunnable =
-            new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        final TransactionRunnable<PersistenceManager> getLinksRunnable =
+            this.getLoadPersistableLinksRunnable(docId, links);
+
+        final TransactionRunnable<PersistenceManager> deleteLinksRunnable =
+            new TransactionRunnable<PersistenceManager>() {
                 protected void onRun()
                 {
-                    this.getContext().getPersistenceManager().deletePersistentAll(linksPointer.target);
+                    this.getContext().deletePersistentAll(links);
                 }
             };
 
-        deleteLinksRunnable.runIn(getLinksRunnable);
+        deleteLinksRunnable.runIn(this.getLoadPersistableLinksRunnable(docId, links));
         getLinksRunnable.runIn(transaction);
 
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to delete backlinks", e);
+            throw new UnexpectedException("Failed to delete backlinks", e);
         }
     }
 
-    private TransactionRunnable<XWikiDataNucleusTransaction> getLoadPersistableLinksRunnable(
+    private TransactionRunnable<PersistenceManager> getLoadPersistableLinksRunnable(
         final long docId,
-        final Pointer<Collection<PersistableXWikiLink>> linksPointer)
+        final Collection<PersistableXWikiLink> links)
     {
-        return new TransactionRunnable<XWikiDataNucleusTransaction>() {
+        return new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final PersistenceManager pm = this.getContext().getPersistenceManager();
-                final Query query = pm.newQuery(PersistableXWikiLink.class);
+                final Query query = this.getContext().newQuery(PersistableXWikiLink.class);
                 query.setFilter("docId == :docId");
-                linksPointer.target = (Collection<PersistableXWikiLink>) query.execute(docId);
+                links.addAll((Collection<PersistableXWikiLink>) query.execute(docId));
             }
         };
     }
