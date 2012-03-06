@@ -31,6 +31,8 @@ import com.xpn.xwiki.XWikiContext;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.store.SearchEngine;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.query.QueryException;
@@ -45,6 +47,9 @@ import org.xwiki.store.TransactionProvider;
 @Named("datanucleus")
 public class DataNucleusSearchEngine implements SearchEngine
 {
+    /** The Logger. */
+    private static final Logger LOGGER = LoggerFactory.getLogger(DataNucleusSearchEngine.class);
+
     @Inject
     private QueryManager queryManager;
 
@@ -62,6 +67,7 @@ public class DataNucleusSearchEngine implements SearchEngine
         } catch (QueryException e) {
             throw new RuntimeException("Failed to get named query for getting translation list", e);
         }
+        LOGGER.debug("Getting translation list for [{}:{}]", doc.getDatabase(), doc.getFullName());
         q.bindValue("wiki", doc.getDatabase()).bindValue("fullname", doc.getFullName());
         final List<PersistableXWikiDocument> translations;
         try {

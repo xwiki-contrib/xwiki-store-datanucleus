@@ -19,34 +19,73 @@
  */
 package org.xwiki.store.objects;
 
+import javax.jdo.annotations.Discriminator;
+import javax.jdo.annotations.DiscriminatorStrategy;
+import javax.jdo.annotations.IdentityType;
+import javax.jdo.annotations.Index;
+import javax.jdo.annotations.Inheritance;
+import javax.jdo.annotations.InheritanceStrategy;
 import javax.jdo.annotations.NotPersistent;
+import javax.jdo.annotations.PersistenceCapable;
+import javax.jdo.annotations.PrimaryKey;
+import org.xwiki.store.UnexpectedException;
 
 /**
  * An Object which has a reference to the bytecode of it's own class.
  */
-public abstract class PersistableObject
+@PersistenceCapable(
+    table = "PersistableObject",
+    identityType = IdentityType.APPLICATION,
+    detachable="true"
+)
+@Inheritance(strategy=InheritanceStrategy.NEW_TABLE)
+@Discriminator(strategy=DiscriminatorStrategy.CLASS_NAME)
+public class PersistableObject
 {
+    @Index
+    @PrimaryKey
+    private String identity;
+
     /** The PersistableClass for this object */
     private transient PersistableClass persistableClass;
 
     public final PersistableClass getPersistableClass()
     {
         if (this.persistableClass == null) {
-            if (!(this.getClass().getClassLoader() instanceof PersistableClassLoader)) {
-                throw new RuntimeException("PersistableObjects classes can only be loaded using a "
-                                           + "PersistableClassLoader.");
-            }
-            final PersistableClassLoader pcl = (PersistableClassLoader) this.getClass().getClassLoader();
-            try {
-                this.persistableClass = pcl.loadPersistableClass(this.getClass().getName());
-            } catch (Exception e) {
-                throw new RuntimeException("This object's class seems to have been loaded with a "
-                                           + "PersistableClassLoader which is now unable to reload the "
-                                           + "PersistableClass, is it consolation to say "
-                                           + "``this can't happen''?");
+            final ClassLoader loader = this.getClass().getClassLoader();
+            if (loader instanceof PersistableClassLoader) {
+                final PersistableClassLoader pcl = (PersistableClassLoader) loader;
+                try {
+                    this.persistableClass = pcl.loadPersistableClass(this.getClass().getName());
+                } catch (Exception e) {
+                    throw new UnexpectedException("This object's class seems to have been loaded "
+                                                  + "with a PersistableClassLoader which is now "
+                                                  + "unable to reload the PersistableClass, is it "
+                                                  + "consolation to say ``this can't happen''?");
+                }
+            } else {
+                // This is a PersistableObject whose class is defined in the binary
+                // such as PersistableXWikiDocument.
+                this.persistableClass = (new PersistableClass(this.getClass().getName(), new byte[0])
+                {
+                    public boolean isDirty()
+                    {
+                        return false;
+                    }
+                });
             }
         }
 
         return this.persistableClass;
+    }
+
+    public final void setPersistableObjectId(final String identity)
+    {
+        this.identity = identity;
+    }
+
+    public final String getPersistableObjectId()
+    {
+        return this.identity;
     }
 }

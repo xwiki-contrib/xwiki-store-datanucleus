@@ -24,17 +24,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument;
+import javax.jdo.JDOObjectNotFoundException;
+import javax.jdo.PersistenceManager;
+import javax.jdo.PersistenceManagerFactory;
+import org.datanucleus.exceptions.NucleusObjectNotFoundException;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.EntityProvider;
 import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
 import org.xwiki.store.objects.PersistableClassLoader;
-import com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument;
-import javax.jdo.PersistenceManager;
-import javax.jdo.PersistenceManagerFactory;
-import javax.jdo.JDOObjectNotFoundException;
 
-
-public class DataNucleusXWikiDocumentProvider implements EntityProvider<XWikiDocument, DocumentReference>
+public class DataNucleusXWikiDocumentProvider
+    implements EntityProvider<XWikiDocument, DocumentReference>
 {
     private final PersistenceManager manager;
 
@@ -45,13 +46,21 @@ public class DataNucleusXWikiDocumentProvider implements EntityProvider<XWikiDoc
 
     public XWikiDocument get(final DocumentReference reference)
     {
-        final String[] key = PersistableXWikiDocument.keyGen(reference, "");
+        final String key = PersistableXWikiDocument.keyGen(reference);
 
-        try {
-            return this.manager.getObjectById(PersistableXWikiDocument.class, key).toXWikiDocument();
-        } catch (JDOObjectNotFoundException e) {
-            return null;
+        final Object[] oids = {
+            this.manager.newObjectIdInstance(PersistableXWikiDocument.class, key)
+        };
+        this.manager.setDetachAllOnCommit(true);
+
+        for (final Object obj : this.manager.getObjectsById(oids, true)) {
+            try {
+                return ((PersistableXWikiDocument) obj).toXWikiDocument(null);
+            } catch (NucleusObjectNotFoundException e) {
+                // Not found.
+            }
         }
+        return null;
     }
 
     public List<XWikiDocument> get(final List<DocumentReference> references)

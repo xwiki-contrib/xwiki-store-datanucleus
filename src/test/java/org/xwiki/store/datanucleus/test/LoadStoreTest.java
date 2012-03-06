@@ -58,8 +58,6 @@ public class LoadStoreTest extends AbstractComponentTestCase
 {
     private static PersistenceManagerFactory FACTORY;
 
-    private static XWikiStoreInterface STORE;
-
     /*private PersistenceManager manager;
 
     @BeforeClass
@@ -94,17 +92,11 @@ public class LoadStoreTest extends AbstractComponentTestCase
         final XWikiDocument globalRights = new XWikiDocument(null);
         globalRights.fromXML(classLoader.getResourceAsStream("XWikiGlobalRights.xml"), false);
 
-        final EntityProvider<XWikiDocument, DocumentReference> docProvider =
-            new StubDocumentProvider(new ArrayList<XWikiDocument>(){{
-                add(xwikiPrefs);
-                add(globalRights);
-            }});
-
         final XWiki xwiki = new XWiki();
         xwiki.setConfig(new XWikiConfig() {
             final Map<String, String> props = (new HashMap<String, String>() {{
                 put("xwiki.store.main.hint", "datanucleus");
-                put("xwiki.work.dir",        "java.io.tmpdir");
+                put("xwiki.work.dir",        System.getProperty("java.io.tmpdir"));
             }});
             public String getProperty(String key, String defaultValue)
             {
@@ -117,12 +109,18 @@ public class LoadStoreTest extends AbstractComponentTestCase
         context.setProperty("xwikicontext", xcontext);
         this.getComponentManager().lookup(Execution.class).setContext(context);
 
-        STORE = this.getComponentManager().lookup(XWikiStoreInterface.class, "datanucleus");
+        final XWikiStoreInterface store =
+            this.getComponentManager().lookup(XWikiStoreInterface.class, "datanucleus");
 
-        STORE.saveXWikiDoc(globalRights, null);
-        STORE.saveXWikiDoc(xwikiPrefs, null);
+        store.saveXWikiDoc(globalRights, null);
+        final XWikiDocument globalRights2 = new XWikiDocument(globalRights.getDocumentReference());
+        store.loadXWikiDoc(globalRights2, null);
 
-        Assert.assertEquals(0, STORE.getTranslationList(xwikiPrefs, null).size());
+        Assert.assertTrue(!globalRights2.isNew());
+
+        store.saveXWikiDoc(xwikiPrefs, null);
+
+        Assert.assertEquals(0, store.getTranslationList(xwikiPrefs, null).size());
 
         // Query
 
@@ -145,30 +143,5 @@ public class LoadStoreTest extends AbstractComponentTestCase
         Assert.assertEquals("Me | Not indexed | Generated persistance capable class! | GroovyClass | "
                               +"MeMeMe | ni | I am a nested object, yay! | GroovyClass#2 | null",
                             c.iterator().next().toString());*/
-    }
-
-    private static class StubDocumentProvider implements EntityProvider<XWikiDocument, DocumentReference>
-    {
-        private final List<XWikiDocument> toProvide;
-
-        public StubDocumentProvider(final List<XWikiDocument> toProvide)
-        {
-            this.toProvide = toProvide;
-        }
-
-        public XWikiDocument get(final DocumentReference docRef)
-        {
-            for (XWikiDocument doc : this.toProvide) {
-                if (doc.getDocumentReference().getName().equals(docRef.getName())) {
-                    return doc;
-                }
-            }
-            return null;
-        }
-
-        public List<XWikiDocument> get(final List<DocumentReference> refs)
-        {
-            throw new RuntimeException("Not implemented");
-        }
     }
 }

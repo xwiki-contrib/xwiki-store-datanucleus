@@ -25,18 +25,25 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.Locale;
 
 import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import javax.jdo.annotations.Discriminator;
+import javax.jdo.annotations.DiscriminatorStrategy;
+import javax.jdo.annotations.Element;
 import javax.jdo.annotations.IdentityType;
 import javax.jdo.annotations.Index;
+import javax.jdo.annotations.Inheritance;
+import javax.jdo.annotations.InheritanceStrategy;
 import javax.jdo.annotations.NotPersistent;
 import javax.jdo.annotations.Persistent;
 import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.PrimaryKey;
+import org.xwiki.model.EntityType;
 import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
 import org.xwiki.store.objects.PersistableObject;
 import org.xwiki.store.objects.PersistableClass;
@@ -45,7 +52,8 @@ import org.xwiki.store.EntityProvider;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReference;
 
-@PersistenceCapable(identityType = IdentityType.APPLICATION)
+@PersistenceCapable
+@Inheritance(strategy=InheritanceStrategy.SUPERCLASS_TABLE)
 public class PersistableXWikiDocument extends PersistableObject
 {
     /* XWikiDocument fields. */
@@ -124,14 +132,6 @@ public class PersistableXWikiDocument extends PersistableObject
     @Index
     public boolean hidden;
 
-    /**
-     * The primary key is an array representation of the wiki, spaces, document name, and language
-     * xwiki:XWiki.WebHome in the default language would be ['xwiki', 'XWiki', 'WebHome', '']
-     */
-    @PrimaryKey
-    @Index
-    public String[] key;
-
     /** The wiki where this document belongs. */
     @Persistent
     public String wiki;
@@ -143,8 +143,9 @@ public class PersistableXWikiDocument extends PersistableObject
      * All objects of the same class *should* be consecutive on this list but the code will recover from
      * an out of order situation.
      */
-    @Persistent(embedded="true", embeddedElement="true", defaultFetchGroup="true")
-    public List<Object> objects;
+    @Persistent(defaultFetchGroup="true")
+    @Element(dependent="true")
+    public List<PersistableObject> objects;
 
     /**
      * XML representations of the classes of the above objects.
@@ -154,17 +155,13 @@ public class PersistableXWikiDocument extends PersistableObject
     @Persistent(serialized="true", defaultFetchGroup="true")
     public List<String> objectClassesXML;
 
-    @Persistent(embedded="true", embeddedElement="true", defaultFetchGroup="true")
+    @Persistent(defaultFetchGroup="true")
+    @Element(dependent="true")
     public List<PersistableXWikiAttachment> attachments;
 
     public PersistableXWikiDocument()
     {
         // do nothing.
-    }
-
-    public PersistableXWikiDocument(final DocumentReference reference, final String language)
-    {
-        this.key = keyGen(reference, language);
     }
 
     public void fromXWikiDocument(final XWikiDocument toClone,
@@ -233,16 +230,15 @@ public class PersistableXWikiDocument extends PersistableObject
             (PersistableClassLoader) Thread.currentThread().getContextClassLoader();
         this.objects = xObjectsToObjects(toClone.getXObjects(), prov, pcl);
 
-        this.key = keyGen(toClone.getDocumentReference(), this.language);
         this.attachments = xAttachmentsToPersistableAttachments(toClone.getAttachmentList());
     }
 
-    private static List<Object> xObjectsToObjects(
+    private static List<PersistableObject> xObjectsToObjects(
         final Map<DocumentReference, List<BaseObject>> xObjects,
         final EntityProvider<XWikiDocument, DocumentReference> provider,
         final PersistableClassLoader loader)
     {
-        final List<Object> out = new ArrayList<Object>();
+        final List<PersistableObject> out = new ArrayList<PersistableObject>();
         final XClassConverter converter = new XClassConverter(loader);
 
         for (final DocumentReference ref : xObjects.keySet()) {
@@ -250,7 +246,7 @@ public class PersistableXWikiDocument extends PersistableObject
 
             // We know the provider will not return null
             // if it did then xObjectClassesToXML would have already thrown an exception.
-            final Class<?> cls = converter.convert(provider.get(ref).getXClass());
+            final Class<PersistableObject> cls = converter.convert(provider.get(ref).getXClass());
 
             for (final BaseObject obj : list) {
                 if (obj == null) {
@@ -279,30 +275,34 @@ public class PersistableXWikiDocument extends PersistableObject
         return out;
     }
 
+    private static void keyGenStep(final EntityReference reference, final StringBuilder sb)
+    {
+        if (reference == null) {
+            return;
+        }
+        keyGenStep(reference.getParent(), sb);
+        sb.append(reference.getName());
+        if (reference.getType() == EntityType.WIKI) {
+            sb.append(":");
+        } else if (reference.getType() == EntityType.DOCUMENT) {
+            final Locale locale = ((DocumentReference) reference).getLocale();
+            if (locale != null) {
+                sb.append(":").append(locale.toString());
+            }
+        } else {
+            sb.append(".");
+        }
+    }
+
     /**
      * Generate a key for a given document.
      * This implementation attempts to be forward compatable with nested spaces.
      */
-    public static String[] keyGen(final DocumentReference reference, final String language)
+    public static String keyGen(final DocumentReference reference)
     {
-        // Start at 1 because we know there will be a language.
-        int size = 1;
-        EntityReference ref = reference;
-        do {
-            ref = ref.getParent();
-            size++;
-        } while (ref != null);
-
-        final String[] out = new String[size];
-
-        out[out.length - 1] = language;
-        ref = reference;
-        for (int i = out.length - 2; i >= 0; i--) {
-            out[i] = ref.getName();
-            ref = ref.getParent();
-        }
-
-        return out;
+        final StringBuilder sb = new StringBuilder();
+        keyGenStep(reference, sb);
+        return sb.toString();
     }
 
     private static List<PersistableXWikiAttachment>
@@ -316,15 +316,12 @@ public class PersistableXWikiDocument extends PersistableObject
         return out;
     }
 
-    public XWikiDocument toXWikiDocument()
+    public XWikiDocument toXWikiDocument(final XWikiDocument prototype)
     {
-        final XWikiDocument out = new XWikiDocument(null);
+        final XWikiDocument out = (prototype == null) ? new XWikiDocument(null) : prototype;
 
-        // This is a hack because it is hard to know if the document actually loaded from the store
-        // or not. We hope that no document for which there is a fullName will ever be new.
-        // This will fail to work correctly if someone creates a new XWikiDocument, converts it to a
-        // PersistableXWikiDocument then converts it back.
-        out.setNew(this.fullName == null);
+        // A new document should not have a JDO key but a loaded document will.
+        out.setNew(this.getPersistableObjectId() == null);
 
         out.setFullName(this.fullName);
         out.setName(this.name);
@@ -363,16 +360,10 @@ public class PersistableXWikiDocument extends PersistableObject
             }
         }
 
-        try {
-            out.setXObjects(objectsToXObjects(
-                 this.objects, this.objectClassesXML, out.getDocumentReference()));
-        } catch (NullPointerException e) {
-            if (this.objects == null && this.objectClassesXML == null) {
-                System.err.println("\n\n\n\n\n\n\n" + this.fullName + " has no xobjects right?\n\n\n\n\n");
-            } else {
-                System.err.println("Loading document" + this.fullName + "  " + this.objects + "  " + this.objectClassesXML);
-                throw e;
-            }
+        if (this.objects != null) {
+            out.setXObjects(objectsToXObjects(this.objects,
+                                              this.objectClassesXML,
+                                              out.getDocumentReference()));
         }
 
         if (this.attachments != null) {
@@ -395,7 +386,7 @@ public class PersistableXWikiDocument extends PersistableObject
     }
 
     private static Map<DocumentReference,
-                       List<BaseObject>> objectsToXObjects(final List<Object> objects,
+                       List<BaseObject>> objectsToXObjects(final List<PersistableObject> objects,
                                                            final List<String> objectClassesXML,
                                                            final DocumentReference docAttachedTo)
     {
@@ -412,14 +403,14 @@ public class PersistableXWikiDocument extends PersistableObject
         }
 
         // Convert the objects.
-        final Map<String, List<Object>> unconverted = mapObjectsByClassName(objects);
+        final Map<String, List<PersistableObject>> unconverted = mapObjectsByClassName(objects);
         final Map<DocumentReference, List<BaseObject>> out =
             new TreeMap<DocumentReference, List<BaseObject>>();
         for (final BaseClass xwikiClass : xwikiClasses) {
             final DocumentReference docRef = xwikiClass.getDocumentReference();
             final String className = JavaClassNameDocumentReferenceSerializer.serializeRef(docRef, null);
             final List<BaseObject> outList = new ArrayList<BaseObject>();
-            final List<Object> unconvertedList = unconverted.get(className);
+            final List<PersistableObject> unconvertedList = unconverted.get(className);
             for (int i = 0; i < unconvertedList.size(); i++) {
                 final BaseObject xwikiObj =
                     XObjectConverter.convertToXObject(unconvertedList.get(i), xwikiClass);
@@ -443,33 +434,36 @@ public class PersistableXWikiDocument extends PersistableObject
      * @param unmapped a list of Objects.
      * @return a Map of Object lists by class name, ordered the same as the input list.
      */
-    private static Map<String, List<Object>> mapObjectsByClassName(final List<Object> unmapped)
+    private static Map<String, List<PersistableObject>> mapObjectsByClassName(
+        final List<PersistableObject> unmapped)
     {
-        final Map<String, List<Object>> out = new TreeMap<String, List<Object>>();
+        final Map<String, List<PersistableObject>> out =
+            new TreeMap<String, List<PersistableObject>>();
         boolean outOfOrder = false;
         Class currentClass = null;
-        List<Object> currentList = null;
-        for (final Object obj : unmapped) {
+        List<PersistableObject> currentList = null;
+        for (final PersistableObject obj : unmapped) {
             if (obj.getClass() != currentClass) {
                 currentClass = obj.getClass();
                 if (out.containsKey(currentClass.getName())) {
-                    // This should not happen but if for some reason a stray object gets out of order,
-                    // it would be better to take the time to correct it than fail catistrophicly because
-                    // we are expecting them to be in order.
+                    // This should not happen but if for some reason a stray object gets out of
+                    // order, it would be better to take the time to correct it than fail
+                    // catistrophicly because we are expecting them to be in order.
                     outOfOrder = true;
                 }
-                currentList = new ArrayList<Object>();
+                currentList = new ArrayList<PersistableObject>();
                 out.put(currentClass.getName(), currentList);
             }
             currentList.add(obj);
         }
         if (outOfOrder) {
-            // If this happens then we need to be careful and index over every entry to correct the order.
-            for (final List<Object> list : out.values()) {
+            // If this happens then we need to be careful and index over every entry to correct
+            // the order.
+            for (final List<PersistableObject> list : out.values()) {
                 list.clear();
             }
             for (final String className : out.keySet()) {
-                for (final Object obj : unmapped) {
+                for (final PersistableObject obj : unmapped) {
                     out.get(obj.getClass().getName()).add(obj);
                 }
             }

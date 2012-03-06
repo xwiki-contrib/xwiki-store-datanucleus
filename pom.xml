@@ -1,5 +1,7 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -16,8 +18,6 @@
     <datanucleus.version>2.2.2</datanucleus.version>
     <datanucleus.enhancer.version>2.1.3</datanucleus.enhancer.version>
     <datanucleus.plugin.version>2.2.1</datanucleus.plugin.version>
-    <cassandra.version>0.7.4</cassandra.version>
-    <pelops.version>1.0-RC1-0.7.0-SNAPSHOT</pelops.version>
   </properties>
 
   <dependencies>
@@ -25,16 +25,6 @@
     <dependency>
       <groupId>org.codehaus.groovy</groupId>
       <artifactId>groovy-all</artifactId>
-    </dependency>
-
-    <!--
-      * Pulled in explicitly because we want Cassandra's transitive dependencies
-      * also allows us to use the latest version of Cassandra.
-      -->
-    <dependency>
-      <groupId>org.apache.cassandra</groupId>
-      <artifactId>cassandra-all</artifactId>
-      <version>${cassandra.version}</version>
     </dependency>
 
     <dependency>
@@ -53,7 +43,17 @@
     <dependency>
       <groupId>com.spidertracks.datanucleus</groupId>
       <artifactId>cassandra-jdo</artifactId>
-      <version>1.1.1-0.7.0-SNAPSHOT</version>
+      <version>1.2-1.0.6-SNAPSHOT</version>
+      <exclusions>
+        <!--
+          * cassandra-all pulls in junit which bundles the wrong version of hamcrest
+          * http://jira.xwiki.org/jira/browse/XPOM-5
+          -->
+        <exclusion>
+          <groupId>junit</groupId>
+          <artifactId>junit</artifactId>
+        </exclusion>
+      </exclusions>
     </dependency>
 
     <dependency>
@@ -94,13 +94,6 @@
       <artifactId>xwiki-platform-store-transaction</artifactId>
       <version>${project.version}</version>
     </dependency>
-
-    <!-- XWikiTransactionProvider -
-    <dependency>
-      <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-store-legacy</artifactId>
-      <version>${project.version}</version>
-    </dependency>-->
 
     <!-- Testing Dependencies -->
 

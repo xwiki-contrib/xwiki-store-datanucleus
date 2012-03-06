@@ -35,7 +35,7 @@ import javax.jdo.JDOObjectNotFoundException;
  * An Object which has a reference to the bytecode of it's own class.
  */
 @PersistenceCapable(identityType = IdentityType.APPLICATION)
-public final class PersistableClass<T>
+public class PersistableClass<T extends PersistableObject>
 {
     /** The name of the class. */
     @Index

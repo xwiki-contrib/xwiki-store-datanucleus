@@ -20,7 +20,7 @@
 package com.xpn.xwiki.store.datanucleus;
 
 import java.util.List;
-import java.util.Arrays;//testing only
+import java.util.Arrays;
 import java.util.ArrayList;
 
 import com.xpn.xwiki.XWikiContext;
@@ -41,6 +41,7 @@ import org.xwiki.store.StartableTransactionRunnable;
 import org.xwiki.store.TransactionException;
 import org.xwiki.store.TransactionProvider;
 import org.xwiki.store.TransactionRunnable;
+import org.xwiki.store.UnexpectedException;
 
 @Component
 @Named("datanucleus")
@@ -60,13 +61,12 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
     public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context)
         throws XWikiException
     {
-        final String[] key =
-            PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
-        System.err.println(">>>>>STORING! " + Arrays.asList(key));
+        final String key = PersistableXWikiDocument.keyGen(doc.getDocumentReference());
 
         final PersistableXWikiDocument pxd = new PersistableXWikiDocument();
+
         final TransactionRunnable<PersistenceManager> storeRunnable =
-            this.objStore.getStoreTransactionRunnable(pxd);
+            this.objStore.getStoreTransactionRunnable(key, pxd);
 
         // Conversion from XWikiDocument to PersistableXWikiDocument must be done
         // after the thread context ClassLoader has been switched.
@@ -82,14 +82,16 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
 
         for (final XWikiAttachment attach : doc.getAttachmentList()) {
             if (attach.isContentDirty()) {
-                this.attachContentStore.getAttachmentContentLoadRunnable(attach).runIn(transaction);
+                this.attachContentStore
+                    .getAttachmentContentSaveRunnable(attach.getAttachment_content())
+                        .runIn(transaction);
             }
         }
 
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new RuntimeException("Failed to store XWikiDocument " + doc, e);
+            throw new UnexpectedException("Failed to store XWikiDocument [" + doc + "]", e);
         }
     }
 
@@ -104,14 +106,11 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
     public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
         throws XWikiException
     {
-        final String[] key =
-            PersistableXWikiDocument.keyGen(doc.getDocumentReference(), doc.getLanguage());
-//System.err.println(">>>>>LOADING! " + Arrays.asList(key));
-
+        final String key = PersistableXWikiDocument.keyGen(doc.getDocumentReference());
         final List<PersistableObject> out = new ArrayList<PersistableObject>(1);
         final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
 
-        this.objStore.getLoadTransactionRunnable(new ArrayList<Object>() { { add(key); } },
+        this.objStore.getLoadTransactionRunnable(new ArrayList<String>(1) { { add(key); } },
                                                  PersistableXWikiDocument.class.getName(),
                                                  out).runIn(transaction);
 
@@ -121,7 +120,7 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
             throw new RuntimeException("Failed to load document " + Arrays.asList(key), e);
         }
 
-        return (out.size() > 0) ? doc : ((PersistableXWikiDocument) out.get(0)).toXWikiDocument();
+        return (out.size() == 0) ? doc : ((PersistableXWikiDocument) out.get(0)).toXWikiDocument(doc);
     }
 
     public boolean exists(final XWikiDocument doc, final XWikiContext unused) throws XWikiException

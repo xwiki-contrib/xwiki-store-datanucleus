@@ -50,6 +50,7 @@ import org.xwiki.model.reference.EntityReference;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.datanucleus.internal.JavaIdentifierEscaper;
 import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerializer;
+import org.xwiki.store.objects.PersistableObject;
 
 /**
  */
@@ -57,7 +58,8 @@ public final class XObjectConverter
 {
     /* ------------------------- Read an XObject into a persistable object. ------------------------- */
 
-    public static Object convertFromXObject(final BaseObject xwikiObject, final Class<?> objectClass)
+    public static PersistableObject convertFromXObject(final BaseObject xwikiObject,
+                                                       final Class<PersistableObject> objectClass)
     {
         final String className =
             JavaClassNameDocumentReferenceSerializer.serializeRef(xwikiObject.getXClassReference(), null);
@@ -66,7 +68,7 @@ public final class XObjectConverter
                                        + "the class name of the XWiki object " + className);
         }
 
-        final Object out;
+        final PersistableObject out;
         try {
             out = objectClass.newInstance();
         } catch (Exception e) {

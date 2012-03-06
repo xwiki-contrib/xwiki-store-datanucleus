@@ -23,8 +23,15 @@ import java.util.Date;
 
 import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
+import javax.jdo.annotations.IdentityType;
+import javax.jdo.annotations.Inheritance;
+import javax.jdo.annotations.InheritanceStrategy;
+import javax.jdo.annotations.PersistenceCapable;
+import org.xwiki.store.objects.PersistableObject;
 
-public class PersistableXWikiAttachment
+@PersistenceCapable(identityType = IdentityType.APPLICATION)
+@Inheritance(strategy=InheritanceStrategy.SUPERCLASS_TABLE)
+public class PersistableXWikiAttachment extends PersistableObject
 {
     private String fileName;
 
