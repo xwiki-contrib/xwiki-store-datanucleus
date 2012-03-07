@@ -36,7 +36,8 @@ public class AllTests
 {
     private static CassandraDaemon DAEMON;
 
-    @BeforeClass
+    // Moved to DataNucleusTransactionProvider.
+    //@BeforeClass
     public static void init() throws Exception
     {
         System.setProperty("log4j.configuration", "log4j.properties");

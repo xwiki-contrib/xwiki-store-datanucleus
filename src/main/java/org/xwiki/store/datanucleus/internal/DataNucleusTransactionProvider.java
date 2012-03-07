@@ -24,6 +24,7 @@ import javax.jdo.JDOHelper;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
 import javax.jdo.Transaction;
+import org.apache.cassandra.thrift.CassandraDaemon;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.store.TransactionProvider;
 import org.xwiki.store.StartableTransactionRunnable;
@@ -40,12 +41,20 @@ import org.xwiki.store.datanucleus.DataNucleusTransaction;
 @Named("datanucleus")
 public class DataNucleusTransactionProvider implements TransactionProvider<PersistenceManager>
 {
+    private final CassandraDaemon cassi;
+
     private final PersistenceManagerFactory factory;
 
     private final DataNucleusClassLoader dnClassLoader;
 
     public DataNucleusTransactionProvider()
     {
+        System.setProperty("log4j.configuration", "log4j.properties");
+        System.setProperty("cassandra.config", "cassandra.yaml");
+        System.setProperty("cassandra-foreground", "1");
+        this.cassi = new CassandraDaemon();
+        this.cassi.activate();
+
         this.factory = JDOHelper.getPersistenceManagerFactory("Test");
         this.dnClassLoader = new DataNucleusClassLoader(this.getClass().getClassLoader());
     }
