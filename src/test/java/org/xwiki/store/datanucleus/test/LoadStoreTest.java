@@ -57,8 +57,6 @@ import org.apache.commons.io.IOUtils;*/
 
 public class LoadStoreTest extends AbstractComponentTestCase
 {
-    private static PersistenceManagerFactory FACTORY;
-
     private XWikiStoreInterface store;
 
     @BeforeClass
