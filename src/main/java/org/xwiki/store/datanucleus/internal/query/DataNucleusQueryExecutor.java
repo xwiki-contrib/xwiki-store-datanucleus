@@ -87,6 +87,11 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
      */
     public <T> List<T> execute(final Query query) throws QueryException
     {
+        return this.execute("javax.jdo.query.JDOQL", query);
+    }
+
+    public <T> List<T> execute(final String language, final Query query) throws QueryException
+    {
         final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
         final List<T> out = new ArrayList<T>();
         final String statement = (query.isNamed())
@@ -96,7 +101,9 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
         (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final javax.jdo.Query jdoQuery = this.getContext().newQuery(statement);
+                final PersistenceManager pm = this.getContext();
+                pm.setDetachAllOnCommit(true);
+                final javax.jdo.Query jdoQuery = pm.newQuery(language, statement);
 
                 if (query.getLimit() > 0 || query.getOffset() > 0) {
                     long rangeEnd = (query.getLimit() > 0) ?
@@ -124,8 +131,7 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
         try {
             transaction.start();
         } catch (TransactionException e) {
-e.printStackTrace();
-            throw new QueryException("Failed to run JDOQL query with statement: ["
+            throw new QueryException("Failed to run " + language + " query with statement: ["
                                      + statement + "]", query, e);
         }
 

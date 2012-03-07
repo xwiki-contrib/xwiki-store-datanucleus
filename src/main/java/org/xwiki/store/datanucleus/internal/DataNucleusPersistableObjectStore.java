@@ -83,6 +83,7 @@ public class DataNucleusPersistableObjectStore
             {
                 final Class cls = Class.forName(className);
                 final PersistenceManager pm = this.getContext();
+                pm.setDetachAllOnCommit(true);
 
                 for (final String key : keys) {
                     try {
@@ -91,7 +92,6 @@ public class DataNucleusPersistableObjectStore
                         LOGGER.debug("Document [{}] was not found.", key);
                     }
                 }
-                pm.setDetachAllOnCommit(true);
             }
         });
     }

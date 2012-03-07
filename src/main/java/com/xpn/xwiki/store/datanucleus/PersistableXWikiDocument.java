@@ -52,7 +52,7 @@ import org.xwiki.store.EntityProvider;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReference;
 
-@PersistenceCapable
+@PersistenceCapable(detachable="true")
 @Inheritance(strategy=InheritanceStrategy.SUPERCLASS_TABLE)
 public class PersistableXWikiDocument extends PersistableObject
 {

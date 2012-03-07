@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.Collection;
 
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.web.Utils;
@@ -58,39 +59,16 @@ public class LoadStoreTest extends AbstractComponentTestCase
 {
     private static PersistenceManagerFactory FACTORY;
 
-    /*private PersistenceManager manager;
+    private XWikiStoreInterface store;
 
     @BeforeClass
     public static void init() throws Exception
     {
-        FACTORY = JDOHelper.getPersistenceManagerFactory("Test");
-    }
+        final LoadStoreTest lst = new LoadStoreTest();
+        final ClassLoader classLoader = lst.getClass().getClassLoader();
 
-    @Before
-    public void setUp() throws Exception
-    {
-        this.manager = FACTORY.getPersistenceManager();
-    }
-
-    @After
-    public void tearDown() throws Exception
-    {
-        this.manager.close();
-    }*/
-
-    @Test
-    public void testLoadStoreXWikiDocument() throws Exception
-    {
-        final ClassLoader classLoader = this.getClass().getClassLoader();
-
-        new ComponentAnnotationLoader().initialize(this.getComponentManager(), classLoader);
-        Utils.setComponentManager(this.getComponentManager());
-
-        final XWikiDocument xwikiPrefs = new XWikiDocument(null);
-        xwikiPrefs.fromXML(classLoader.getResourceAsStream("XWikiPreferences.xml"), false);
-
-        final XWikiDocument globalRights = new XWikiDocument(null);
-        globalRights.fromXML(classLoader.getResourceAsStream("XWikiGlobalRights.xml"), false);
+        new ComponentAnnotationLoader().initialize(lst.getComponentManager(), classLoader);
+        Utils.setComponentManager(lst.getComponentManager());
 
         final XWiki xwiki = new XWiki();
         xwiki.setConfig(new XWikiConfig() {
@@ -107,41 +85,109 @@ public class LoadStoreTest extends AbstractComponentTestCase
         xcontext.setWiki(xwiki);
         final ExecutionContext context = new ExecutionContext();
         context.setProperty("xwikicontext", xcontext);
-        this.getComponentManager().lookup(Execution.class).setContext(context);
+        lst.getComponentManager().lookup(Execution.class).setContext(context);
+    }
 
-        final XWikiStoreInterface store =
-            this.getComponentManager().lookup(XWikiStoreInterface.class, "datanucleus");
+    @Before
+    public void setUp() throws Exception
+    {
+        this.store = Utils.getComponent(XWikiStoreInterface.class, "datanucleus");
+    }
 
-        store.saveXWikiDoc(globalRights, null);
+    @Test
+    public void testLoadStoreXWikiDocument() throws Exception
+    {
+        final ClassLoader classLoader = this.getClass().getClassLoader();
+        final XWikiDocument xwikiPrefs = new XWikiDocument(null);
+        xwikiPrefs.fromXML(classLoader.getResourceAsStream("XWikiPreferences.xml"), false);
+
+        final XWikiDocument globalRights = new XWikiDocument(null);
+        globalRights.fromXML(classLoader.getResourceAsStream("XWikiGlobalRights.xml"), false);
+
+        this.store.saveXWikiDoc(globalRights, null);
         final XWikiDocument globalRights2 = new XWikiDocument(globalRights.getDocumentReference());
-        store.loadXWikiDoc(globalRights2, null);
+        this.store.loadXWikiDoc(globalRights2, null);
 
         Assert.assertTrue(!globalRights2.isNew());
 
-        store.saveXWikiDoc(xwikiPrefs, null);
+        this.store.saveXWikiDoc(xwikiPrefs, null);
 
         Assert.assertEquals(0, store.getTranslationList(xwikiPrefs, null).size());
 
         // Query
 
-        // This doesn't work because JPQL is not supported (yet...)
-        /*Collection c = (Collection)
-            this.manager.newQuery("javax.jdo.query.JPQL", "SELECT doc FROM " + gclass.getName()
-                                + " as doc WHERE doc.title = 'GroovyClass'").execute();*/
 
-        // This doesn't work because querying against nested objects is not supported. (yet)
+
         /*Collection c = (Collection)
-            this.manager.newQuery("SELECT FROM " + gclass.getName()
-                                  + " WHERE innerDocument.title == 'GroovyClass#2'").execute();*/
+            this.manager.newQuery("javax.jdo.query.JPQL", "SELECT doc FROM "
+                                  + PersistableXWikiDocument.class.getName() + " as doc WHERE "
+                                  + "doc.fullName = 'XWiki.XWikiPreferences'").execute();*/
+
+
 /*
-        Collection c = (Collection)
-            this.manager.newQuery("SELECT FROM " + gclass.getName()
-                                  + " WHERE title == 'GroovyClass'").execute();
-
         Assert.assertEquals(c.size(), 1);
         //System.out.println(c.iterator().next().toString());
         Assert.assertEquals("Me | Not indexed | Generated persistance capable class! | GroovyClass | "
                               +"MeMeMe | ni | I am a nested object, yay! | GroovyClass#2 | null",
                             c.iterator().next().toString());*/
+    }
+
+    @Test
+    public void testSimpleQuery() throws Exception
+    {
+        final Collection c = this.store.getQueryManager().createQuery(
+            "SELECT FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument WHERE "
+          + "fullName == \"XWiki.XWikiPreferences\"", "jdoql").execute();
+        Assert.assertTrue(c.size() == 1);
+    }
+
+    @Test
+    public void testQueryOnObject() throws Exception
+    {
+        final Collection c = this.store.getQueryManager().createQuery(
+            "SELECT FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument WHERE "
+          + "objects.contains(obj) && "
+          + "obj.colorTheme == \"ColorThemes.DefaultColorTheme\"", "jdoql").execute();
+        Assert.assertTrue(c.size() == 1);
+        final PersistableXWikiDocument xwikiPrefs = (PersistableXWikiDocument) c.toArray()[0];
+        final XWikiDocument doc = xwikiPrefs.toXWikiDocument(null);
+        Assert.assertEquals("XWiki.XWikiPreferences", doc.getFullName());
+        Assert.assertEquals("{{include document=\"XWiki.AdminSheet\" /}}", doc.getContent());
+        Assert.assertEquals("admin,edit,undelete",
+                            doc.getObject("xwiki:XWiki.XWikiGlobalRights").getStringValue("levels"));
+    }
+
+    @Test
+    public void testJpqlQuery() throws Exception
+    {
+        final Collection c = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT doc.content FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument "
+          + " as doc WHERE doc.fullName = 'XWiki.XWikiPreferences'", "jpql").execute();
+        Assert.assertEquals(1, c.size());
+        Assert.assertEquals("{{include document=\"XWiki.AdminSheet\" /}}", c.toArray()[0]);
+    }
+
+    @Test
+    @org.junit.Ignore("TODO: figure out how we can do jpql queries joining objects.")
+    public void testJpqlQueryOnObject() throws Exception
+    {
+        final Collection c = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT doc FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument AS doc "
+          + "INNER JOIN doc.objects AS obj WHERE obj.levels = 'admin,edit,undelete'",
+        "jpql").execute();
+
+        Assert.assertEquals(1, c.size());
+        Assert.assertEquals("XWiki.XWikiPreferences", c.toArray()[0]);
+    }
+
+    @Test
+    public void testJpqlQueryOnObjectAlone() throws Exception
+    {
+        final Collection c = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT obj.identity FROM xwiki.XWiki.XWikiGlobalRights AS obj WHERE "
+          + "obj.levels = 'admin,edit,undelete'", "jpql").execute();
+
+        Assert.assertEquals(1, c.size());
+        Assert.assertEquals("xwiki:XWiki.XWikiPreferences.objects[0]", c.toArray()[0]);
     }
 }

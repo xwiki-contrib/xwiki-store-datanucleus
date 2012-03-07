@@ -5,3 +5,4 @@ com.xpn.xwiki.store.datanucleus.DataNucleusStore
 org.xwiki.store.datanucleus.internal.DataNucleusTransactionProvider
 org.xwiki.store.datanucleus.internal.query.DataNucleusQueryExecutor
 org.xwiki.store.datanucleus.internal.query.JdoqlQueryExecutor
+org.xwiki.store.datanucleus.internal.query.JpqlQueryExecutor
