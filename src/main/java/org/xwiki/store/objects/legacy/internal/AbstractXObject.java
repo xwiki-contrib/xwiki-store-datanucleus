@@ -17,13 +17,18 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.store;
+package org.xwiki.store.objects.legacy.internal;
 
-import java.util.List;
+import java.util.Map;
 
-public interface EntityProvider<E, R>
+import com.xpn.xwiki.objects.BaseObject;
+import javax.jdo.annotations.PersistenceCapable;
+import org.xwiki.store.objects.PersistableObject;
+
+@PersistenceCapable
+public abstract class AbstractXObject extends PersistableObject
 {
-    E get(final R reference);
-
-    List<E> get(final List<R> references);
+    public abstract Map<String, Class> _getMetaData();
+    public abstract Map<String, Object> _getFields();
+    public abstract void _setFields(final Map<String, Object> map);
 }

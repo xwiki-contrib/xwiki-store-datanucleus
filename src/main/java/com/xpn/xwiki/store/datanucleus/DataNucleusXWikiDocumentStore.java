@@ -35,7 +35,6 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.attachments.newstore.internal.AttachmentContentStore;
 import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
-import org.xwiki.store.EntityProvider;
 import org.xwiki.store.objects.PersistableObject;
 import org.xwiki.store.StartableTransactionRunnable;
 import org.xwiki.store.TransactionException;
@@ -73,7 +72,7 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
         (new TransactionRunnable<PersistenceManager>() {
             protected void onPreRun()
             {
-                pxd.fromXWikiDocument(doc, new DataNucleusXWikiDocumentProvider(this.getContext()));
+                pxd.fromXWikiDocument(doc);
             }
         }).runIn(storeRunnable);
 

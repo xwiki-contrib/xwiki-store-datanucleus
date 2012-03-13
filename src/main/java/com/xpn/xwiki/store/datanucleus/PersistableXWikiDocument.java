@@ -48,9 +48,9 @@ import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerial
 import org.xwiki.store.objects.PersistableObject;
 import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.objects.PersistableClassLoader;
-import org.xwiki.store.EntityProvider;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.model.reference.EntityReference;
+import org.xwiki.store.objects.legacy.internal.AbstractXObject;
 
 @PersistenceCapable(detachable="true")
 @Inheritance(strategy=InheritanceStrategy.SUPERCLASS_TABLE)
@@ -145,15 +145,7 @@ public class PersistableXWikiDocument extends PersistableObject
      */
     @Persistent(defaultFetchGroup="true")
     @Element(dependent="true")
-    public List<PersistableObject> objects;
-
-    /**
-     * XML representations of the classes of the above objects.
-     * These are needed to convert the Objects back to XWiki objects.
-     * The order of these classes determines the order in which the classes will be placed in the map.
-     */
-    @Persistent(serialized="true", defaultFetchGroup="true")
-    public List<String> objectClassesXML;
+    public List<AbstractXObject> objects;
 
     @Persistent(defaultFetchGroup="true")
     @Element(dependent="true")
@@ -164,8 +156,7 @@ public class PersistableXWikiDocument extends PersistableObject
         // do nothing.
     }
 
-    public void fromXWikiDocument(final XWikiDocument toClone,
-                                  final EntityProvider<XWikiDocument, DocumentReference> provider)
+    public void fromXWikiDocument(final XWikiDocument toClone)
     {
         this.fullName = toClone.getFullName();
         this.name = toClone.getName();
@@ -200,77 +191,34 @@ public class PersistableXWikiDocument extends PersistableObject
 
         this.wiki = toClone.getDatabase();
 
-        EntityProvider<XWikiDocument, DocumentReference> prov = provider;
-
-        // Get the XClass, if it doesn't exist then it's created so having no fields = nonexistance.
-        final BaseClass baseClass = toClone.getXClass();
-        if (baseClass.getPropertyList().size() > 0) {
-            // If this document has an object which self references
-            // then we need to break the chicken/egg cycle.
-            // TODO: Loops with more than 2 classes.
-            prov = (new EntityProviderWrapper<XWikiDocument, DocumentReference>(provider) {
-                public final BaseClass thisClass = baseClass;
-
-                public final DocumentReference ref = toClone.getDocumentReference();
-
-                public XWikiDocument get(final DocumentReference reference)
-                {
-                    if (this.ref.equals(reference)) {
-                        final XWikiDocument out = new XWikiDocument(this.ref);
-                        out.setXClass(baseClass);
-                        return out;
-                    }
-                    return super.get(reference);
-                }
-            });
-        }
-
-        this.objectClassesXML = xObjectClassesToXML(toClone.getXObjects().keySet(), prov);
         final PersistableClassLoader pcl =
             (PersistableClassLoader) Thread.currentThread().getContextClassLoader();
-        this.objects = xObjectsToObjects(toClone.getXObjects(), prov, pcl);
+        this.objects = xObjectsToObjects(toClone.getXObjects(), pcl);
 
         this.attachments = xAttachmentsToPersistableAttachments(toClone.getAttachmentList());
     }
 
-    private static List<PersistableObject> xObjectsToObjects(
+    private static List<AbstractXObject> xObjectsToObjects(
         final Map<DocumentReference, List<BaseObject>> xObjects,
-        final EntityProvider<XWikiDocument, DocumentReference> provider,
         final PersistableClassLoader loader)
     {
-        final List<PersistableObject> out = new ArrayList<PersistableObject>();
+        final List<AbstractXObject> out = new ArrayList<AbstractXObject>();
         final XClassConverter converter = new XClassConverter(loader);
 
         for (final DocumentReference ref : xObjects.keySet()) {
             final List<BaseObject> list = xObjects.get(ref);
 
-            // We know the provider will not return null
-            // if it did then xObjectClassesToXML would have already thrown an exception.
-            final Class<PersistableObject> cls = converter.convert(provider.get(ref).getXClass());
-
+            Class<AbstractXObject> cls = null;
             for (final BaseObject obj : list) {
                 if (obj == null) {
                     System.err.println("\n\nA baseobject was null!\n\n");
                 } else {
+                    if (cls == null) {
+                        cls = converter.convert(obj);
+                    }
                     out.add(XObjectConverter.convertFromXObject(obj, cls));
                 }
             }
-        }
-        return out;
-    }
-
-    private static List<String> xObjectClassesToXML(
-        final Set<DocumentReference> xObjectClasses,
-        final EntityProvider<XWikiDocument, DocumentReference> provider)
-    {
-        final List<String> out = new ArrayList<String>(xObjectClasses.size());
-        for (final DocumentReference classRef : xObjectClasses) {
-            final XWikiDocument doc = provider.get(classRef);
-            if (doc == null) {
-                throw new RuntimeException("Could not load document for class "
-                                            + classRef + " was it deleted?");
-            }
-            out.add(doc.getXClass().toXMLString());
         }
         return out;
     }
@@ -361,9 +309,7 @@ public class PersistableXWikiDocument extends PersistableObject
         }
 
         if (this.objects != null) {
-            out.setXObjects(objectsToXObjects(this.objects,
-                                              this.objectClassesXML,
-                                              out.getDocumentReference()));
+            out.setXObjects(objectsToXObjects(this.objects, out.getDocumentReference()));
         }
 
         if (this.attachments != null) {
@@ -386,39 +332,28 @@ public class PersistableXWikiDocument extends PersistableObject
     }
 
     private static Map<DocumentReference,
-                       List<BaseObject>> objectsToXObjects(final List<PersistableObject> objects,
-                                                           final List<String> objectClassesXML,
+                       List<BaseObject>> objectsToXObjects(final List<AbstractXObject> objects,
                                                            final DocumentReference docAttachedTo)
     {
-        // Get the class for each object.
-        final List<BaseClass> xwikiClasses = new ArrayList<BaseClass>();
-        for (final String xml : objectClassesXML) {
-            final BaseClass xwikiClass = new BaseClass();
-            try {
-                xwikiClass.fromXML(xml);
-            } catch (XWikiException e) {
-                throw new RuntimeException("Failed to convert xwiki class from xml", e);
-            }
-            xwikiClasses.add(xwikiClass);
-        }
-
         // Convert the objects.
-        final Map<String, List<PersistableObject>> unconverted = mapObjectsByClassName(objects);
+        final Map<String, List<AbstractXObject>> unconverted = mapObjectsByClassName(objects);
         final Map<DocumentReference, List<BaseObject>> out =
             new TreeMap<DocumentReference, List<BaseObject>>();
-        for (final BaseClass xwikiClass : xwikiClasses) {
-            final DocumentReference docRef = xwikiClass.getDocumentReference();
-            final String className = JavaClassNameDocumentReferenceSerializer.serializeRef(docRef, null);
-            final List<BaseObject> outList = new ArrayList<BaseObject>();
-            final List<PersistableObject> unconvertedList = unconverted.get(className);
+
+        for (final Map.Entry<String, List<AbstractXObject>> e : unconverted.entrySet()) {
+            final DocumentReference classRef =
+                JavaClassNameDocumentReferenceSerializer.resolveRef(e.getKey(), null);
+
+            final List<AbstractXObject> unconvertedList = e.getValue();
+            final List<BaseObject> outList = new ArrayList<BaseObject>(unconvertedList.size());
             for (int i = 0; i < unconvertedList.size(); i++) {
                 final BaseObject xwikiObj =
-                    XObjectConverter.convertToXObject(unconvertedList.get(i), xwikiClass);
+                    XObjectConverter.convertToXObject(unconvertedList.get(i));
                 xwikiObj.setDocumentReference(docAttachedTo);
                 xwikiObj.setNumber(i);
                 outList.add(xwikiObj);
             }
-            out.put(docRef, outList);
+            out.put(classRef, outList);
         }
 
         return out;
@@ -434,15 +369,15 @@ public class PersistableXWikiDocument extends PersistableObject
      * @param unmapped a list of Objects.
      * @return a Map of Object lists by class name, ordered the same as the input list.
      */
-    private static Map<String, List<PersistableObject>> mapObjectsByClassName(
-        final List<PersistableObject> unmapped)
+    private static Map<String, List<AbstractXObject>> mapObjectsByClassName(
+        final List<AbstractXObject> unmapped)
     {
-        final Map<String, List<PersistableObject>> out =
-            new TreeMap<String, List<PersistableObject>>();
+        final Map<String, List<AbstractXObject>> out =
+            new TreeMap<String, List<AbstractXObject>>();
         boolean outOfOrder = false;
         Class currentClass = null;
-        List<PersistableObject> currentList = null;
-        for (final PersistableObject obj : unmapped) {
+        List<AbstractXObject> currentList = null;
+        for (final AbstractXObject obj : unmapped) {
             if (obj.getClass() != currentClass) {
                 currentClass = obj.getClass();
                 if (out.containsKey(currentClass.getName())) {
@@ -451,7 +386,7 @@ public class PersistableXWikiDocument extends PersistableObject
                     // catistrophicly because we are expecting them to be in order.
                     outOfOrder = true;
                 }
-                currentList = new ArrayList<PersistableObject>();
+                currentList = new ArrayList<AbstractXObject>();
                 out.put(currentClass.getName(), currentList);
             }
             currentList.add(obj);
@@ -459,35 +394,15 @@ public class PersistableXWikiDocument extends PersistableObject
         if (outOfOrder) {
             // If this happens then we need to be careful and index over every entry to correct
             // the order.
-            for (final List<PersistableObject> list : out.values()) {
+            for (final List<AbstractXObject> list : out.values()) {
                 list.clear();
             }
             for (final String className : out.keySet()) {
-                for (final PersistableObject obj : unmapped) {
+                for (final AbstractXObject obj : unmapped) {
                     out.get(obj.getClass().getName()).add(obj);
                 }
             }
         }
         return out;
-    }
-
-    private static class EntityProviderWrapper<E, R> implements EntityProvider<E, R>
-    {
-        public final EntityProvider<E, R> wrapped;
-
-        public EntityProviderWrapper(final EntityProvider<E, R> wrapped)
-        {
-            this.wrapped = wrapped;
-        }
-
-        public E get(final R reference)
-        {
-            return wrapped.get(reference);
-        }
-
-        public List<E> get(final List<R> references)
-        {
-            return wrapped.get(references);
-        }
     }
 }

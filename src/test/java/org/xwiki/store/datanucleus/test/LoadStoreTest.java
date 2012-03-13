@@ -44,7 +44,6 @@ import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
 import org.xwiki.test.AbstractComponentTestCase;
 import org.xwiki.model.reference.DocumentReference;
-import org.xwiki.store.EntityProvider;
 import com.xpn.xwiki.store.datanucleus.DataNucleusStore;
 import com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument;
 import com.xpn.xwiki.store.XWikiStoreInterface;
@@ -146,7 +145,7 @@ public class LoadStoreTest extends AbstractComponentTestCase
             "SELECT FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument WHERE "
           + "objects.contains(obj) && "
           + "obj.colorTheme == \"ColorThemes.DefaultColorTheme\"", "jdoql").execute();
-        Assert.assertTrue(c.size() == 1);
+        Assert.assertEquals(1, c.size());
         final PersistableXWikiDocument xwikiPrefs = (PersistableXWikiDocument) c.toArray()[0];
         final XWikiDocument doc = xwikiPrefs.toXWikiDocument(null);
         Assert.assertEquals("XWiki.XWikiPreferences", doc.getFullName());
@@ -165,13 +164,14 @@ public class LoadStoreTest extends AbstractComponentTestCase
         Assert.assertEquals("{{include document=\"XWiki.AdminSheet\" /}}", c.toArray()[0]);
     }
 
-    @Test
-    @org.junit.Ignore("TODO: figure out how we can do jpql queries joining objects.")
+    // TODO make this work.
+    //@Test
     public void testJpqlQueryOnObject() throws Exception
     {
         final Collection c = (Collection) this.store.getQueryManager().createQuery(
-            "SELECT doc FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument AS doc "
-          + "INNER JOIN doc.objects AS obj WHERE obj.levels = 'admin,edit,undelete'",
+            "SELECT doc FROM com.xpn.xwiki.store.datanucleus.PersistableXWikiDocument AS doc, "
+          + "IN(doc.objects) AS obj "
+          + "WHERE obj.levels = 'admin,edit,undelete'",
         "jpql").execute();
 
         Assert.assertEquals(1, c.size());

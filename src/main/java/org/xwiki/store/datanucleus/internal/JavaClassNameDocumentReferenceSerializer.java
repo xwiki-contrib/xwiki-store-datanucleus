@@ -58,9 +58,16 @@ public final class JavaClassNameDocumentReferenceSerializer
         return sb.substring(1);
     }
 
-    public static DocumentReference resolveRef(final String representation, final Object... parameters)
+    public static DocumentReference resolveRef(final String representation,
+                                               final Object... parameters)
     {
-        final String[] splitClassName = representation.split(".");
+        final String[] splitClassName = representation.split("\\.");
+        if (splitClassName.length < 3) {
+            throw new IllegalArgumentException("Cannot resolve reference from string representation "
+                                               + "[" + representation + "] because it does not "
+                                               + "contain at least 3 dot-deliniated parts (wiki, "
+                                               + "space, and name)");
+        }
         final List<String> spaceNames = new ArrayList<String>(splitClassName.length - 2);
         final String wikiName = JavaIdentifierEscaper.unescape(splitClassName[0]);
         final String pageName = JavaIdentifierEscaper.unescape(splitClassName[splitClassName.length - 1]);
