@@ -33,6 +33,7 @@ import groovy.lang.GroovyCodeSource;
 import javax.inject.Inject;
 import javax.inject.Named;
 import javax.jdo.PersistenceManager;
+import org.datanucleus.exceptions.ClassNotResolvedException;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.component.phase.Initializable;
 import org.xwiki.component.phase.InitializationException;
@@ -131,6 +132,17 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
         try {
             transaction.start();
         } catch (TransactionException e) {
+            // If there's a ClassNotResolvedException, that probably means there's a query for
+            // an XObject of which the class is not in the db. In this event, there are obviously
+            // no objects of that class so returning an empty list is expected.
+            Throwable cause = e.getCause();
+            while (cause != null) {
+                if (cause.getClass() == ClassNotResolvedException.class) {
+                    return out;
+                }
+                cause = cause.getCause();
+            }
+
             throw new QueryException("Failed to run " + language + " query with statement: ["
                                      + statement + "]", query, e);
         }

@@ -28,27 +28,24 @@ import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.PrimaryKey;
 import org.xwiki.store.objects.PersistableObject;
 
-@PersistenceCapable(identityType = IdentityType.APPLICATION)
+@PersistenceCapable
 public class PersistableXWikiLock extends PersistableObject
 {
-    @PrimaryKey
-    @Index
-    public long docId;
-
     public String userName;
 
     public Date date;
 
     public PersistableXWikiLock(final XWikiLock lock)
     {
-        this.docId = lock.getDocId();
+        this.setPersistableObjectId("" + lock.getDocId());
         this.userName = lock.getUserName();
         this.date = lock.getDate();
     }
 
     public XWikiLock toXWikiLock()
     {
-        final XWikiLock lock = new XWikiLock(this.docId, this.userName);
+        final XWikiLock lock =
+            new XWikiLock(Long.parseLong(this.getPersistableObjectId()), this.userName);
         lock.setDate(this.date);
         return lock;
     }

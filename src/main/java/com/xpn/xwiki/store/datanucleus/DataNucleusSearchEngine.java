@@ -154,7 +154,8 @@ public class DataNucleusSearchEngine implements SearchEngine
     public List<String> searchDocumentsNames(final String wheresql)
         throws XWikiException
     {
-        throw new RuntimeException("not implemented");
+        // Admin interface refuses to allow import if this throws an exception.
+        return new ArrayList<String>(0);
     }
 
     public List<DocumentReference> searchDocumentReferences(final String wheresql,

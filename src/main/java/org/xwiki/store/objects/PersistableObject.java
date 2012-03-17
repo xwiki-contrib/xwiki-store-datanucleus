@@ -28,6 +28,8 @@ import javax.jdo.annotations.InheritanceStrategy;
 import javax.jdo.annotations.NotPersistent;
 import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.PrimaryKey;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.xwiki.store.UnexpectedException;
 
 /**
@@ -42,12 +44,20 @@ import org.xwiki.store.UnexpectedException;
 @Discriminator(strategy=DiscriminatorStrategy.CLASS_NAME)
 public class PersistableObject
 {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PersistableObject.class);
+
     @Index
     @PrimaryKey
     private String identity;
 
-    /** The PersistableClass for this object */
-    private transient PersistableClass persistableClass;
+    /**
+     * The PersistableClass for this object.
+     * This should not be persisted the normal way because then it would be reloaded
+     * with the object rather than using a class in memory which is potentially newer
+     * and definitely already in memory.
+     */
+    @NotPersistent
+    private PersistableClass persistableClass;
 
     public final PersistableClass getPersistableClass()
     {
@@ -61,18 +71,14 @@ public class PersistableObject
                     throw new UnexpectedException("This object's class seems to have been loaded "
                                                   + "with a PersistableClassLoader which is now "
                                                   + "unable to reload the PersistableClass, is it "
-                                                  + "consolation to say ``this can't happen''?");
+                                                  + "consolation to say ``this can't happen''?", e);
                 }
             } else {
-                // This is a PersistableObject whose class is defined in the binary
-                // such as PersistableXWikiDocument.
-                this.persistableClass = (new PersistableClass(this.getClass().getName(), new byte[0])
-                {
-                    public boolean isDirty()
-                    {
-                        return false;
-                    }
-                });
+                LOGGER.error("The PersistableClass [{}] was defined in the codebase.",
+                             this.getClass());
+
+                this.persistableClass =
+                    new PersistableClass(this.getClass().getName(), new byte[0]);
             }
         }
 

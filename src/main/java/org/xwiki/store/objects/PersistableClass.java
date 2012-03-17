@@ -37,7 +37,7 @@ import javax.jdo.JDOObjectNotFoundException;
 @PersistenceCapable(
     table = "PersistableClass",
     identityType = IdentityType.APPLICATION,
-    detachable="true"
+    detachable = "true"
 )
 public class PersistableClass<T extends PersistableObject>
 {
@@ -46,27 +46,21 @@ public class PersistableClass<T extends PersistableObject>
     @PrimaryKey
     private String name;
 
-    /**
-     * The bytecode representation of this class.
-     * Package private so that the classloader can access it directly.
-     */
+    /** The bytecode representation of this class. */
     @Persistent
-    public byte[] bytes;
+    private byte[] bytes;
 
     /** The java class which this PersistableClass represents. */
     @NotPersistent
-    transient Class<T> nativeClass;
-
-    transient PersistableClassLoader persistableClassLoader;
+    Class<T> nativeClass;
 
     @NotPersistent
-    private transient boolean dirty;
+    PersistableClassLoader persistableClassLoader;
 
     PersistableClass(final String name, final byte[] bytes)
     {
         this.name = name;
         this.bytes = Arrays.copyOf(bytes, bytes.length);
-        this.dirty = true;
     }
 
     public String getName()
@@ -74,19 +68,19 @@ public class PersistableClass<T extends PersistableObject>
         return this.name;
     }
 
-    public byte[] getBytes()
+    public byte[] copyBytes()
     {
         return Arrays.copyOf(this.bytes, this.bytes.length);
+    }
+
+    public byte[] getBytes()
+    {
+        return this.bytes;
     }
 
     public Class<T> getNativeClass()
     {
         return this.nativeClass;
-    }
-
-    public boolean isDirty()
-    {
-        return this.dirty;
     }
 
     public PersistableClassLoader getClassLoader()

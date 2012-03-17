@@ -20,9 +20,10 @@
 package org.xwiki.store.objects;
 
 import java.io.IOException;
+import java.lang.ref.SoftReference;
 import java.security.SecureClassLoader;
-import java.security.ProtectionDomain;
-import java.util.HashMap;
+import java.util.Arrays;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
 
 import org.apache.commons.io.IOUtils;
@@ -34,7 +35,8 @@ public abstract class AbstractPersistableClassLoader
     extends SecureClassLoader
     implements PersistableClassLoader
 {
-    private final Map<String, PersistableClass> classByName = new HashMap<String, PersistableClass>();
+    private final Map<String, SoftReference<PersistableClass>> classByName =
+        new ConcurrentHashMap<String, SoftReference<PersistableClass>>();
 
     /**
      * The Constructor.
@@ -57,30 +59,25 @@ public abstract class AbstractPersistableClassLoader
 
     public PersistableClass<?> definePersistableClass(final String name, final byte[] byteCode)
     {
-        PersistableClass pc = new PersistableClass(name, byteCode);
-        final Class<?> c = this.defineClass(name, pc.bytes, 0, pc.bytes.length, (ProtectionDomain) null);
-        this.resolveClass(c);
-        pc = (PersistableClass<?>) pc;
-        pc.nativeClass = c;
-        this.classByName.put(name, pc);
+        final SoftReference<PersistableClass> pcRef = this.classByName.get(name);
+        PersistableClass pc = (pcRef != null) ? pcRef.get() : null;
+        if (pc != null && Arrays.equals(pc.getBytes(), byteCode)) {
+            return pc;
+        }
+        pc = new PersistableClass(name, byteCode);
+        new SinglePersistableClassLoader(this, pc);
+        this.classByName.put(name, new SoftReference<PersistableClass>(pc));
         return pc;
     }
 
     public PersistableClass<?> loadPersistableClass(final String name) throws ClassNotFoundException
     {
-        PersistableClass pc = this.classByName.get(name);
-        if (pc != null) {
-            return (PersistableClass<?>) pc;
+        final SoftReference<PersistableClass> pcRef = this.classByName.get(name);
+        PersistableClass pc = (pcRef != null) ? pcRef.get() : null;
+        if (pc == null) {
+            pc = this.getClassFromStorage(name);
+            new SinglePersistableClassLoader(this, pc);
         }
-
-        pc = this.getClassFromStorage(name);
-        final Class<?> c = this.defineClass(name, pc.bytes, 0, pc.bytes.length, (ProtectionDomain) null);
-        pc = (PersistableClass<?>) pc;
-        this.resolveClass(c);
-        pc.nativeClass = c;
-
-        pc.persistableClassLoader = this;
-        this.classByName.put(name, pc);
         return pc;
     }
 
@@ -91,4 +88,50 @@ public abstract class AbstractPersistableClassLoader
 
     protected abstract PersistableClass getClassFromStorage(final String name)
         throws ClassNotFoundException;
+
+    /**
+     * A PersistableClassLoader which loads one and only one class.
+     * When the class is no longer used, it will be garbage collected along with the loader.
+     */
+    private static class SinglePersistableClassLoader
+        extends SecureClassLoader
+        implements PersistableClassLoader
+    {
+        private final Class singleClass;
+
+        private final PersistableClassLoader parent;
+
+        private SinglePersistableClassLoader(final PersistableClassLoader parent,
+                                             final PersistableClass toLoad)
+        {
+            super(parent.asNativeLoader());
+            this.parent = parent;
+            final byte[] bytes = toLoad.getBytes();
+            if (bytes == null) {
+                throw new NullPointerException("The bytecode for class [" + toLoad.getName()
+                                               + "] is null.");
+            }
+            final Class c = super.defineClass(toLoad.getName(), bytes, 0, bytes.length);
+            this.resolveClass(c);
+            toLoad.nativeClass = c;
+            toLoad.persistableClassLoader = this;
+            this.singleClass = c;
+        }
+
+        public PersistableClass<?> loadPersistableClass(final String name)
+            throws ClassNotFoundException
+        {
+            return this.parent.loadPersistableClass(name);
+        }
+
+        public PersistableClass<?> definePersistableClass(final String name, final byte[] byteCode)
+        {
+            return this.parent.definePersistableClass(name, byteCode);
+        }
+
+        public ClassLoader asNativeLoader()
+        {
+            return this;
+        }
+    }
 }

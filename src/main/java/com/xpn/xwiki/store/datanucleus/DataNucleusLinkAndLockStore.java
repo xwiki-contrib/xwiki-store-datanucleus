@@ -86,7 +86,7 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore
             {
                 final PersistenceManager pm = this.getContext();
                 try {
-                    out[0] = pm.getObjectById(PersistableXWikiLock.class, docId);
+                    out[0] = pm.getObjectById(PersistableXWikiLock.class, "" + docId);
                     pm.makeTransient(out[0]);
                 } catch (JDOObjectNotFoundException e) {
                     // Not found, out[0] is already null so we leave it.
@@ -129,7 +129,7 @@ public class DataNucleusLinkAndLockStore implements LinkAndLockStore
                 final PersistenceManager pm = this.getContext();
                 try {
                     final PersistableXWikiLock plock =
-                        pm.getObjectById(PersistableXWikiLock.class, lock.getDocId());
+                        pm.getObjectById(PersistableXWikiLock.class, "" + lock.getDocId());
                     pm.deletePersistent(plock);
                 } catch (JDOObjectNotFoundException e) {
                     // Can't delete what isn't there.

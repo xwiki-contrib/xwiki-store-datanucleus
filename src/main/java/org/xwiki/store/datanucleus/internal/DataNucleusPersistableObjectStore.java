@@ -19,16 +19,17 @@
  */
 package org.xwiki.store.datanucleus.internal;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.Stack;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.ParameterizedType;
 
+import javax.jdo.JDOHelper;
 import javax.jdo.JDOObjectNotFoundException;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
@@ -60,12 +61,14 @@ public class DataNucleusPersistableObjectStore
             protected void onRun()
             {
                 final PersistenceManager manager = this.getContext();
-                final List<PersistableClass> classes = getClassesAndSetIds(key, value);
+                manager.setDetachAllOnCommit(true);
+                final Set<PersistableClass> classes = getClassesAndSetIds(key, value);
+                LOGGER.error("Storing object [{}] which contains [{}] classes.", key, classes.size());
                 for (final PersistableClass pc : classes) {
-                    if (pc.isDirty()) {
-                        try {
-                            manager.makePersistent(pc);
-                        } catch (Exception e) { }
+                    if (!JDOHelper.isDetached(pc) || JDOHelper.isDirty(pc)) {
+                        LOGGER.error("Storing class [{}] bytecode length [{}].",
+                                     pc.getName(), pc.getBytes().length);
+                        manager.makePersistent(pc);
                     }
                 }
                 manager.makePersistent(value);
@@ -96,14 +99,14 @@ public class DataNucleusPersistableObjectStore
         });
     }
 
-    private static List<PersistableClass> getClassesAndSetIds(final String key,
-                                                              final PersistableObject value)
+    private static Set<PersistableClass> getClassesAndSetIds(final String key,
+                                                             final PersistableObject value)
     {
         final Map<String, PersistableObject> objectsByKey =
             new HashMap<String, PersistableObject>();
         walkTree(key, value, objectsByKey, new Stack());
 
-        final List<PersistableClass> out = new ArrayList<PersistableClass>();
+        final Set<PersistableClass> out = new HashSet<PersistableClass>();
         for (final Map.Entry<String, PersistableObject> e : objectsByKey.entrySet()) {
             e.getValue().setPersistableObjectId(e.getKey());
             out.add(e.getValue().getPersistableClass());

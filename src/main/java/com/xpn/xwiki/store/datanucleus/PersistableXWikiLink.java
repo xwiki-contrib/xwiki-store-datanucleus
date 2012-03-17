@@ -28,17 +28,9 @@ import javax.jdo.annotations.PersistenceCapable;
 import javax.jdo.annotations.PrimaryKey;
 import org.xwiki.store.objects.PersistableObject;
 
-@PersistenceCapable(identityType = IdentityType.APPLICATION)
+@PersistenceCapable
 public class PersistableXWikiLink extends PersistableObject
 {
-    /**
-     * The key is comprised of the id of the document which this link points from,
-     * represented as a base10 string, and and the name of the document which it points to.
-     * Eg:  ['1234567890', 'Main.WebHome']
-     */
-    @PrimaryKey
-    public String[] key;
-
     /** The ID of the document which this link comes from. */
     @Index
     public long docId;
@@ -55,7 +47,7 @@ public class PersistableXWikiLink extends PersistableObject
         this.docId = link.getDocId();
         this.fullName = link.getFullName();
         this.link = link.getLink();
-        this.key = new String[] { "" + this.docId, this.link };
+        this.setPersistableObjectId(this.docId + ":" + this.link);
     }
 
     public XWikiLink toXWikiLink()

@@ -89,6 +89,9 @@ public final class XObjectConverter
     public static BaseObject convertToXObject(final AbstractXObject persistable)
     {
         final BaseObject out = new BaseObject();
+        final DocumentReference classRef =
+            JavaClassNameDocumentReferenceSerializer.resolveRef(persistable.getClass().getName());
+        out.setXClassReference(classRef);
         final Map<String, Class> classes = persistable._getMetaData();
         for (Map.Entry<String, Object> e : persistable._getFields().entrySet()) {
             if (e.getValue() != null) {
