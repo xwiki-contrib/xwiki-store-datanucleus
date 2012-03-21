@@ -1,0 +1,3 @@
+org.xwiki.store.datanucleus.internal.query.DataNucleusQueryExecutor
+org.xwiki.store.datanucleus.internal.query.JdoqlQueryExecutor
+org.xwiki.store.datanucleus.internal.query.JpqlQueryExecutor

@@ -1,0 +1,155 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.xwiki.platform</groupId>
+    <artifactId>xwiki-platform-store</artifactId>
+    <version>3.4-SNAPSHOT</version>
+  </parent>
+
+  <groupId>org.xwiki.platform</groupId>
+  <artifactId>xwiki-platform-store-datanucleus-documents</artifactId>
+  <packaging>jar</packaging>
+
+  <properties>
+    <datanucleus.version>2.2.2</datanucleus.version>
+    <datanucleus.enhancer.version>2.1.3</datanucleus.enhancer.version>
+    <datanucleus.plugin.version>2.2.1</datanucleus.plugin.version>
+  </properties>
+
+  <dependencies>
+
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-store-datanucleus-base</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Need oldcore for XWikiDocument, XWikiAttachment, etc. -->
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-oldcore</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Need to call an attachment content store when saving documents. -->
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-store-filesystem-datanucleus-attachments</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Cassandra is the only implementation of this at the moment. -->
+    <dependency>
+      <groupId>org.xwiki.platform</groupId>
+      <artifactId>xwiki-platform-store-datanucleus-cassandra</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- Testing Dependencies -->
+
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit-dep</artifactId>
+      <version>4.8.2</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>cpsuite</groupId>
+      <artifactId>cpsuite</artifactId>
+      <version>1.2.5</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.xwiki.commons</groupId>
+      <artifactId>xwiki-commons-test</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+  </dependencies>
+
+  <build>
+    <plugins>
+
+      <!-- Enhance PersistableXWikiDocument, PersistableXWikiLock, PersistableXWikiLink -->
+      <plugin>
+        <groupId>org.datanucleus</groupId>
+        <artifactId>maven-datanucleus-plugin</artifactId>
+        <version>${datanucleus.plugin.version}</version>
+        <configuration>
+          <mappingIncludes>**/*.jdo, **/*.class</mappingIncludes>
+          <verbose>true</verbose>
+          <enhancerName>ASM</enhancerName>
+        </configuration>
+        <executions>
+          <execution>
+            <phase>compile</phase>
+            <goals>
+              <goal>enhance</goal>
+            </goals>
+          </execution>
+        </executions>
+        <dependencies>
+           <dependency>
+             <groupId>org.datanucleus</groupId>
+             <artifactId>datanucleus-core</artifactId>
+             <version>${datanucleus.version}</version>
+           </dependency>
+        </dependencies>
+      </plugin>
+
+      <plugin>
+        <!-- Apply the Checkstyle configurations defined in the top level pom.xml file -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <configuration>
+          <excludes>
+              <!-- Just prototyping for now. -->
+              **/*
+          </excludes>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <repositories>
+
+    <!-- DataNucleus -->
+    <repository>
+      <id>DN_M2_Repo</id>
+      <url>http://www.datanucleus.org/downloads/maven2/</url>
+    </repository>
+
+    <!--
+      * scale7 pelops, used by Datanucleus-Cassandra-Plugin.
+      * explicitly references here because spidertracks maven
+      * repo uses http://github which github redirects to https
+      * confusing maven.
+      -->
+    <repository>
+      <id>maven.scale7.org</id>
+      <name>Scale7 Maven Repo</name>
+      <url>https://github.com/s7/mvnrepo/raw/master</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+
+    <!-- Datanucleus-Cassandra-Plugin -->
+    <repository>
+      <id>maven.spidertracks.com</id>
+      <name>Spidertracks Maven Repo</name>
+      <url>https://github.com/tnine/m2repo/raw/master</url>
+      <snapshots>
+        <enabled>true</enabled>
+      </snapshots>
+    </repository>
+
+  </repositories>
+</project>

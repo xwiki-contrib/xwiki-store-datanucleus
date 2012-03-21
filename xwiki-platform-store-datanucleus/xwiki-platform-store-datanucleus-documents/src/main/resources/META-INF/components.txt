@@ -1,0 +1,5 @@
+org.xwiki.store.legacy.internal.datanucleus.DataNucleusLinkAndLockStore
+org.xwiki.store.legacy.internal.datanucleus.DataNucleusSearchEngine
+org.xwiki.store.legacy.internal.datanucleus.DataNucleusXWikiDocumentStore
+org.xwiki.store.legacy.internal.datanucleus.DataNucleusStore
+org.xwiki.store.legacy.internal.datanucleus.DataNucleusTransactionProvider

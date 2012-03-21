@@ -1,0 +1,36 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.xwiki.platform</groupId>
+    <artifactId>xwiki-platform-store</artifactId>
+    <version>3.4-SNAPSHOT</version>
+  </parent>
+
+  <groupId>org.xwiki.platform</groupId>
+  <artifactId>xwiki-platform-store-datanucleus</artifactId>
+  <packaging>pom</packaging>
+  <description>See README.md</description>
+
+  <modules>
+    <module>xwiki-platform-store-datanucleus-base</module>
+    <module>xwiki-platform-store-datanucleus-cassandra</module>
+    <module>xwiki-platform-store-datanucleus-attachments</module>
+    <module>xwiki-platform-store-filesystem-datanucleus-attachments</module>
+    <module>xwiki-platform-store-datanucleus-documents</module>
+  </modules>
+
+  <build>
+    <plugins>
+      <plugin>
+        <!-- Apply the Checkstyle configurations defined in the top level pom.xml file -->
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+      </plugin>
+    </plugins>
+  </build>
+
+</project>

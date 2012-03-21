@@ -1,0 +1,2 @@
+org.xwiki.store.attachments.adapter.internal.FilesystemDataNucleusAttachmentStoreAdapter
+org.xwiki.store.attachments.adapter.internal.FilesystemDataNucleusAttachmentRecycleBinStoreAdapter
