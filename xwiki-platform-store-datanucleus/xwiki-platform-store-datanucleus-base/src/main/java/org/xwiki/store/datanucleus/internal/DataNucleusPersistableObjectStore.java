@@ -65,7 +65,11 @@ public class DataNucleusPersistableObjectStore
                 final Set<PersistableClass> classes = getClassesAndSetIds(key, value);
                 LOGGER.error("Storing object [{}] which contains [{}] classes.", key, classes.size());
                 for (final PersistableClass pc : classes) {
-                    if (!JDOHelper.isDetached(pc) || JDOHelper.isDirty(pc)) {
+                    // "Internal" PCs such as PersistableXWikiDocument have 0 length
+                    // and should never be stored.
+                    if (pc.getBytes().length > 0
+                        && (!JDOHelper.isDetached(pc) || JDOHelper.isDirty(pc)))
+                    {
                         LOGGER.error("Storing class [{}] bytecode length [{}].",
                                      pc.getName(), pc.getBytes().length);
                         manager.makePersistent(pc);

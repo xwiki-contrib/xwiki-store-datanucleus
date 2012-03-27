@@ -47,6 +47,7 @@ import org.xwiki.store.objects.PersistableObject;
 // we must prove they are available.
 import javax.jdo.annotations.Index;
 import javax.jdo.annotations.PersistenceCapable;
+import javax.jdo.annotations.Persistent;
 import org.xwiki.store.objects.PersistableObject;
 
 /**
@@ -104,9 +105,10 @@ final class XClassConverter
             + "import com.xpn.xwiki.objects.BaseObject;\n"
             + "import javax.jdo.annotations.Index;\n"
             + "import javax.jdo.annotations.PersistenceCapable;\n"
+            + "import javax.jdo.annotations.Persistent;\n"
             + "import org.xwiki.store.legacy.internal.datanucleus.AbstractXObject;\n"
             + "\n"
-            + "@PersistenceCapable\n"
+            + "@PersistenceCapable(detachable = \"true\")\n"
         );
 
 
@@ -216,7 +218,8 @@ final class XClassConverter
             writeTo.append("Date");
 
         } else if (ListProperty.class.isAssignableFrom(propClass)) {
-            writeTo.append("List<String>");
+            writeTo.append("@Persistent(defaultFetchGroup=\"true\")\n"
+                         + "List<String>");
 
         } else if (propClass == DoubleProperty.class) {
             writeTo.append("Double");
