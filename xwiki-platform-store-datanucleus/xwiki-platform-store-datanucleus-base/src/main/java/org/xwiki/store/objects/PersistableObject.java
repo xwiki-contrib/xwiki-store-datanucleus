@@ -74,7 +74,7 @@ public class PersistableObject
                                                   + "consolation to say ``this can't happen''?", e);
                 }
             } else {
-                LOGGER.error("The PersistableClass [{}] was defined in the codebase.",
+                LOGGER.debug("The PersistableClass [{}] was defined in the codebase.",
                              this.getClass());
 
                 this.persistableClass =

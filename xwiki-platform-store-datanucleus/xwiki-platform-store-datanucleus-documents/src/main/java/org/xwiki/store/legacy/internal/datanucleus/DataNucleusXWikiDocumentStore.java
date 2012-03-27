@@ -60,7 +60,7 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
     public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context)
         throws XWikiException
     {
-        final String key = PersistableXWikiDocument.keyGen(doc.getDocumentReference());
+        final String key = PersistableXWikiDocument.keyGen(doc);
 
         final PersistableXWikiDocument pxd = new PersistableXWikiDocument();
 
@@ -105,7 +105,8 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
     public XWikiDocument loadXWikiDoc(final XWikiDocument doc, final XWikiContext unused)
         throws XWikiException
     {
-        final String key = PersistableXWikiDocument.keyGen(doc.getDocumentReference());
+
+        final String key = PersistableXWikiDocument.keyGen(doc);
         final List<PersistableObject> out = new ArrayList<PersistableObject>(1);
         final StartableTransactionRunnable<PersistenceManager> transaction = this.provider.get();
 

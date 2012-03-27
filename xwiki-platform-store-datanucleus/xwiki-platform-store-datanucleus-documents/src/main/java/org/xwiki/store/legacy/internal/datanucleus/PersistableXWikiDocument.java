@@ -141,8 +141,8 @@ public class PersistableXWikiDocument extends PersistableObject
      * Objects.
      * The class of each object is determinable by object.getClass() and the object index
      * in the list corrisponding to it's class is determined by it's placement on the list.
-     * All objects of the same class *should* be consecutive on this list but the code will recover from
-     * an out of order situation.
+     * All objects of the same class *should* be consecutive on this list but the code will
+     * recover from an out of order situation.
      */
     @Persistent(defaultFetchGroup="true")
     @Element(dependent="true")
@@ -233,12 +233,7 @@ public class PersistableXWikiDocument extends PersistableObject
         sb.append(reference.getName());
         if (reference.getType() == EntityType.WIKI) {
             sb.append(":");
-        } else if (reference.getType() == EntityType.DOCUMENT) {
-            final Locale locale = ((DocumentReference) reference).getLocale();
-            if (locale != null) {
-                sb.append(":").append(locale.toString());
-            }
-        } else {
+        } else if (reference.getType() != EntityType.DOCUMENT) {
             sb.append(".");
         }
     }
@@ -247,10 +242,15 @@ public class PersistableXWikiDocument extends PersistableObject
      * Generate a key for a given document.
      * This implementation attempts to be forward compatable with nested spaces.
      */
-    public static String keyGen(final DocumentReference reference)
+    public static String keyGen(final XWikiDocument doc)
     {
+        final DocumentReference reference = doc.getDocumentReference();
         final StringBuilder sb = new StringBuilder();
         keyGenStep(reference, sb);
+        final String lang = doc.getLanguage();
+        if (!"".equals(lang)) {
+            sb.append(":").append(lang);
+        }
         return sb.toString();
     }
 
@@ -315,8 +315,6 @@ public class PersistableXWikiDocument extends PersistableObject
 
         if (this.attachments != null) {
             out.setAttachmentList(persistableAttachmentsToXWikiAttachments(this.attachments, out));
-        } else {
-            System.err.println("\n\n\n\n\n\n\n" + this.fullName + " has no attachments right?\n\n\n\n\n");
         }
 
         return out;
@@ -364,9 +362,10 @@ public class PersistableXWikiDocument extends PersistableObject
     /**
      * Convert a List of objects into a TreeMap of Lists of Objects by class name.
      * The TreeMap will be ordered the same as the order of objects in the list.
-     * This implementation will run with a number of map lookups and inserts equal to the number of classes
-     * and ArrayList.add's equal to the number of objects if all objects of each class are in sequence
-     * in the list, if they are not then it will perform badly but will not fail.
+     * This implementation will run with a number of map lookups and inserts equal
+     * to the number of classes and ArrayList.add's equal to the number of objects
+     * if all objects of each class are in sequence in the list, if they are not then
+     * it will perform badly but will not fail.
      *
      * @param unmapped a list of Objects.
      * @return a Map of Object lists by class name, ordered the same as the input list.
