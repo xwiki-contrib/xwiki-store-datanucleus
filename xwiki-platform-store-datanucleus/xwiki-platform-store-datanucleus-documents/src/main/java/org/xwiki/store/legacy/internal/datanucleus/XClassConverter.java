@@ -103,6 +103,7 @@ final class XClassConverter
               "import java.util.Map;\n"
             + "import java.util.HashMap;\n"
             + "import com.xpn.xwiki.objects.BaseObject;\n"
+            + "import javax.jdo.annotations.Element;\n"
             + "import javax.jdo.annotations.Index;\n"
             + "import javax.jdo.annotations.PersistenceCapable;\n"
             + "import javax.jdo.annotations.Persistent;\n"
@@ -204,36 +205,39 @@ final class XClassConverter
                                    final Class propClass,
                                    final StringBuilder writeTo)
     {
-        writeTo.append("@Index\n");
-        writeTo.append("public ");
-        if (propClass == StringProperty.class
-            || propClass == LargeStringProperty.class)
-        {
-            writeTo.append("String");
-
-        } else if (propClass == IntegerProperty.class) {
-            writeTo.append("Integer");
-
-        } else if (propClass == DateProperty.class) {
-            writeTo.append("Date");
-
-        } else if (ListProperty.class.isAssignableFrom(propClass)) {
-            writeTo.append("@Persistent(defaultFetchGroup=\"true\")\n"
-                         + "List<String>");
-
-        } else if (propClass == DoubleProperty.class) {
-            writeTo.append("Double");
-
-        } else if (propClass == FloatProperty.class) {
-            writeTo.append("Float");
-
-        } else if (propClass == LongProperty.class) {
-            writeTo.append("Long");
-
+        if (ListProperty.class.isAssignableFrom(propClass)) {
+            writeTo.append("@Index\n"
+                         + "@Persistent(defaultFetchGroup=\"true\")\n"
+                         + "@Element(indexed=\"true\", dependent=\"true\")\n"
+                         + "private List<String>");
         } else {
-            throw new RuntimeException("Encountered a " + propClass.getName()
-                                       + " property which is not handled.");
-        };
+            writeTo.append("@Index\n"
+                         + "private ");
+            if (propClass == StringProperty.class
+                || propClass == LargeStringProperty.class)
+            {
+                writeTo.append("String");
+
+            } else if (propClass == IntegerProperty.class) {
+                writeTo.append("Integer");
+
+            } else if (propClass == DateProperty.class) {
+                writeTo.append("Date");
+
+            } else if (propClass == DoubleProperty.class) {
+                writeTo.append("Double");
+
+            } else if (propClass == FloatProperty.class) {
+                writeTo.append("Float");
+
+            } else if (propClass == LongProperty.class) {
+                writeTo.append("Long");
+
+            } else {
+                throw new RuntimeException("Encountered a " + propClass.getName()
+                                           + " property which is not handled.");
+            }
+        }
         writeTo.append(" ");
         writeTo.append(JavaIdentifierEscaper.escape(fieldName));
         writeTo.append(";\n\n");

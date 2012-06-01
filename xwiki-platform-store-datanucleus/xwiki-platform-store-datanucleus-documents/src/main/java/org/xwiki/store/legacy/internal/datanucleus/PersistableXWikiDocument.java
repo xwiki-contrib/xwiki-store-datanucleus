@@ -146,6 +146,7 @@ public class PersistableXWikiDocument extends PersistableObject
      */
     @Persistent(defaultFetchGroup="true")
     @Element(dependent="true")
+    @Index
     public List<AbstractXObject> objects;
 
     @Persistent(defaultFetchGroup="true")

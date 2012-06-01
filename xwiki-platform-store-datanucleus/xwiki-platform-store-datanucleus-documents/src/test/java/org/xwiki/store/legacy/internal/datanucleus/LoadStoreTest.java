@@ -19,6 +19,7 @@
  */
 package org.xwiki.store.legacy.internal.datanucleus;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,7 +37,9 @@ import com.xpn.xwiki.XWikiConfig;
 import javax.jdo.JDOHelper;
 import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
+import javax.servlet.ServletContext;
 import org.apache.commons.io.IOUtils;
+import org.jmock.Expectations;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -45,9 +48,12 @@ import org.junit.Test;
 import org.xwiki.component.annotation.ComponentAnnotationLoader;
 import org.xwiki.context.Execution;
 import org.xwiki.context.ExecutionContext;
+import org.xwiki.environment.Environment;
+import org.xwiki.environment.internal.ServletEnvironment;
 import org.xwiki.test.AbstractComponentTestCase;
 import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument;
+import org.xwiki.store.attachments.adapter.internal.FilesystemDataNucleusAttachmentStoreAdapter;
 
 
 public class LoadStoreTest
@@ -62,6 +68,17 @@ public class LoadStoreTest
 
         new ComponentAnnotationLoader().initialize(actc.getComponentManager(), classLoader);
         Utils.setComponentManager(actc.getComponentManager());
+
+        final ServletEnvironment sev = (ServletEnvironment)
+            actc.getComponentManager().getInstance(Environment.class);
+        final ServletContext sc = actc.getMockery().mock(ServletContext.class);
+        sev.setServletContext(sc);
+        actc.getMockery().checking(new Expectations() {{
+            allowing(sc).getAttribute("javax.servlet.context.tempdir");
+                will(returnValue(new File(System.getProperty("java.io.tmpdir"))));
+            allowing(sc).getResource("/WEB-INF/xwiki.properties");
+                will(returnValue(null));
+        }});
 
         final XWiki xwiki = new XWiki();
         xwiki.setConfig(new XWikiConfig() {
@@ -79,8 +96,10 @@ public class LoadStoreTest
         xcontext.setWiki(xwiki);
         final ExecutionContext context = new ExecutionContext();
         context.setProperty("xwikicontext", xcontext);
-        actc.getComponentManager().lookup(Execution.class).setContext(context);
-        xwiki.setAttachmentStore(Utils.getComponent(XWikiAttachmentStoreInterface.class, "file"));
+        final Execution exec = actc.getComponentManager().getInstance(Execution.class);
+        exec.setContext(context);
+        xwiki.setAttachmentStore((XWikiAttachmentStoreInterface)
+            actc.getComponentManager().getInstance(XWikiAttachmentStoreInterface.class, "file"));
     }
 
     @Before
