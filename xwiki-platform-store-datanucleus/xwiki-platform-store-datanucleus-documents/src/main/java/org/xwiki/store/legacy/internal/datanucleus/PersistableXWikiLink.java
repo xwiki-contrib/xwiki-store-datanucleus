@@ -47,7 +47,7 @@ public class PersistableXWikiLink extends PersistableObject
         this.docId = link.getDocId();
         this.fullName = link.getFullName();
         this.link = link.getLink();
-        this.setPersistableObjectId(this.docId + ":" + this.link);
+        this.setId(this.docId + ":" + this.link);
     }
 
     public XWikiLink toXWikiLink()

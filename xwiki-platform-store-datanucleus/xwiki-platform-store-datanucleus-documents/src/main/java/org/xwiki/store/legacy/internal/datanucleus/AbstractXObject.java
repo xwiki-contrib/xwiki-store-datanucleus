@@ -28,7 +28,7 @@ import org.xwiki.store.objects.PersistableObject;
 @PersistenceCapable
 public abstract class AbstractXObject extends PersistableObject
 {
-    public abstract Map<String, Class> _getMetaData();
-    public abstract Map<String, Object> _getFields();
-    public abstract void _setFields(final Map<String, Object> map);
+    public abstract Map<String, Class> getMetaData();
+    public abstract Map<String, Object> getFields();
+    public abstract void setFields(final Map<String, Object> map);
 }

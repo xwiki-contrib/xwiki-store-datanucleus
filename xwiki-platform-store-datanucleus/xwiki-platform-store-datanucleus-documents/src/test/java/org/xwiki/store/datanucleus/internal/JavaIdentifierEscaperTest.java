@@ -31,16 +31,18 @@ public class JavaIdentifierEscaperTest
         Assert.assertEquals("testX5820xcode", JavaIdentifierEscaper.escape("testX20xcode"));
         Assert.assertEquals("testX2codeNotQuite", JavaIdentifierEscaper.escape("testX2codeNotQuite"));
         Assert.assertEquals("testX582CisEscaped", JavaIdentifierEscaper.escape("testX2CisEscaped"));
-        Assert.assertEquals("nulX6C", JavaIdentifierEscaper.escape("null"));
+        Assert.assertEquals("null_", JavaIdentifierEscaper.escape("null"));
+        Assert.assertEquals("notReserved__", JavaIdentifierEscaper.escape("notReserved_"));
     }
 
     @Test
     public void testUnescape()
     {
-        Assert.assertEquals("test space", JavaIdentifierEscaper.unescape("testX20space"));
+        Assert.assertEquals("test space", JavaIdentifierEscaper.unescape("testX20space_"));
         Assert.assertEquals("testX20xcode", JavaIdentifierEscaper.unescape("testX5820xcode"));
         Assert.assertEquals("testX2codeNotQuite", JavaIdentifierEscaper.unescape("testX2codeNotQuite"));
         Assert.assertEquals("testX2CisEscaped", JavaIdentifierEscaper.unescape("testX582CisEscaped"));
-        Assert.assertEquals("null", JavaIdentifierEscaper.unescape("nulX6C"));
+        Assert.assertEquals("null", JavaIdentifierEscaper.unescape("null_"));
+        Assert.assertEquals("notReserved_", JavaIdentifierEscaper.unescape("notReserved__"));
     }
 }

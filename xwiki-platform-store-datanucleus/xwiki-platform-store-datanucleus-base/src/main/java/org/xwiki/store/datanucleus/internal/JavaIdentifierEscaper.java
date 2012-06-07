@@ -34,6 +34,11 @@ public class JavaIdentifierEscaper
         "super", "while", "null", "true", "false"
     };
 
+    public static String escape(final String toEscape)
+    {
+        return escape(toEscape, new String[] { });
+    }
+
     /**
      * Escape a string so that it is a valid java class/memeber name.
      * XWiki supports names with characters which are not allowed in java fields so we must do escaping.
@@ -46,9 +51,11 @@ public class JavaIdentifierEscaper
      * If the first character is not a letter ([a-zA-Z]) then it must be escaped as well.
      *
      * @param toEscape a String which may contain unallowable characters.
+     * @param reservedWords an array of words which are off limits,
+     *                      none of these may end in an underscore.
      * @return a String which may be used for a Java class, method, or field.
      */
-    public static String escape(final String toEscape)
+    public static String escape(final String toEscape, final String[] reservedWords)
     {
         // Pass #1, escape any occurences of X[0-9A-F][0-9A-F]
         // At this point it is not necessary to convert the String from UTF-16 because it will be serialized
@@ -79,20 +86,33 @@ public class JavaIdentifierEscaper
                 sb.append((char) pass1Bin[i]);
             }
         }
-        final String pass2 = sb.toString();
 
-        // The last bit of uglyness is caused by using java keywords or literals.
-        for (final String reserved : JAVA_RESERVED_WORDS) {
-            // In order to simplify decoding, we will escape the last letter even though it's valid.
-            if (pass2.equals(reserved)) {
-                // This works because all java reserved words require no escaping.
-                sb.deleteCharAt(sb.length() - 1);
-                escapeChar(pass1Bin[pass1Bin.length - 1], sb);
-                return sb.toString();
-            }
+        if (isInArray(sb, JAVA_RESERVED_WORDS)
+            || isInArray(sb, reservedWords)
+            || sb.charAt(sb.length() - 1) == '_')
+        {
+            // If it matches a reserved word, we'll just append an underscore.
+            // If it doesn't match but it ends in an underscore we still append an underscore.
+            // we strip any trailing underscore in the decode cycle.
+            return sb.append('_').toString();
         }
 
-        return pass2;
+        return sb.toString();
+    }
+
+    private static boolean isInArray(final StringBuilder sb, final String[] array)
+    {
+        // The last bit of uglyness is caused by using java keywords or literals.
+        for (final String word : array) {
+            if (word.charAt(word.length() - 1) == '_') {
+                throw new IllegalArgumentException(
+                    "Words ending in _ are not allowed, found [" + word + "]");
+            }
+            if (word.contentEquals(sb)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void escapeChar(final byte toEscape, final StringBuilder writeTo)
@@ -119,6 +139,11 @@ public class JavaIdentifierEscaper
             throw new RuntimeException("No UTF-8, this java vm is not standards compliant!");
         }
         m.appendTail(out);
+
+        // If the last char is a _ then pop it.
+        if (out.charAt(out.length() - 1) == '_') {
+            out.deleteCharAt(out.length() - 1);
+        }
 
         return out.toString();
     }

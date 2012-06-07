@@ -53,9 +53,7 @@ import org.xwiki.store.datanucleus.internal.JavaClassNameDocumentReferenceSerial
 import org.xwiki.store.objects.PersistableObject;
 import org.xwiki.store.UnexpectedException;
 
-/**
- */
-final class XObjectConverter
+class XObjectConverter
 {
     public static AbstractXObject convertFromXObject(final BaseObject xwikiObject,
                                                      final Class<AbstractXObject> objectClass)
@@ -80,7 +78,7 @@ final class XObjectConverter
         for (final String name : xwikiObject.getPropertyList()) {
             propertyValues.put(name, ((BaseProperty) xwikiObject.getField(name)).getValue());
         }
-        out._setFields(propertyValues);
+        out.setFields(propertyValues);
 
         return out;
     }
@@ -91,8 +89,8 @@ final class XObjectConverter
         final DocumentReference classRef =
             JavaClassNameDocumentReferenceSerializer.resolveRef(persistable.getClass().getName());
         out.setXClassReference(classRef);
-        final Map<String, Class> classes = persistable._getMetaData();
-        for (Map.Entry<String, Object> e : persistable._getFields().entrySet()) {
+        final Map<String, Class> classes = persistable.getMetaData();
+        for (Map.Entry<String, Object> e : persistable.getFields().entrySet()) {
             if (e.getValue() != null) {
                 setValue(e.getKey(), e.getValue(), classes.get(e.getKey()), out);
             }
@@ -134,7 +132,8 @@ final class XObjectConverter
             xobj.setDBStringListValue(name, (List) value);
 
         } else {
-            throw new UnexpectedException("Encountered an unhandled property of type " + valueClass);
+            throw new UnexpectedException("Encountered an unhandled property of type "
+                                          + valueClass);
         }
     }
 }

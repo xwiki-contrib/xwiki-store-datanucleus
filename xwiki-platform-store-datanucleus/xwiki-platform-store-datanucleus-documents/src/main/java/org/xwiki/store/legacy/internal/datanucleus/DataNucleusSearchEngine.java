@@ -69,15 +69,15 @@ public class DataNucleusSearchEngine implements SearchEngine
         }
         LOGGER.debug("Getting translation list for [{}:{}]", doc.getDatabase(), doc.getFullName());
         q.bindValue("wiki", doc.getDatabase()).bindValue("fullname", doc.getFullName());
-        final List<PersistableXWikiDocument> translations;
+        final List<String> translations;
         try {
-            translations = (List<PersistableXWikiDocument>) (List) q.execute();
+            translations = (List<String>) (List) q.execute();
         } catch (QueryException e) {
             throw new RuntimeException("Failed to execute query for getting translation list", e);
         }
-        for (final PersistableXWikiDocument translation : translations) {
-            if (translation.language != null && !translation.language.equals("")) {
-                languages.add(translation.language);
+        for (final String translation : translations) {
+            if (translation != null && !translation.equals("")) {
+                languages.add(translation);
             }
         }
 

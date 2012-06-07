@@ -56,6 +56,19 @@ import org.xwiki.store.objects.PersistableObject;
  */
 final class XClassConverter
 {
+    /** Words which must not be used as identifiers. */
+    public static final String[] RESERVED_WORDS = new String[] {
+        // Reserved because the PersistableObject field called 'id' is used.
+        "id",
+
+        // Reserved because there is a field called 'className' which contains a
+        // string representation of the class name.
+        "className",
+
+        // Used internally.
+        "XCLASS_METADATA"
+    };
+
     private static final Logger LOGGER = LoggerFactory.getLogger(XClassConverter.class);
 
     private final PersistableClassLoader loader;
@@ -112,9 +125,9 @@ final class XClassConverter
             + "@PersistenceCapable(detachable = \"true\")\n"
         );
 
-
-        writeTo.append("public final class ").append(JavaIdentifierEscaper.escape(docRef.getName()))
-            .append(" extends AbstractXObject\n{\n");
+        writeTo.append("public final class ")
+            .append(JavaIdentifierEscaper.escape(docRef.getName()))
+                .append(" extends AbstractXObject\n{\n");
 
         // Get fields.
         final Map<String, Class> propertyMap = new HashMap<String, Class>();
@@ -122,8 +135,9 @@ final class XClassConverter
             propertyMap.put(fieldName, xobject.getField(fieldName).getClass());
         }
 
-        writeGetMetaData(propertyMap, writeTo);
+        writeMetaData(propertyMap, writeTo);
         writeFields(propertyMap, writeTo);
+        writeClassName(writeTo);
         writeGetMetaData(writeTo);
         writeSetFields(propertyMap, writeTo);
         writeGetFields(propertyMap, writeTo);
@@ -131,15 +145,22 @@ final class XClassConverter
         writeTo.append("}\n");
     }
 
-    private static void writeGetMetaData(final Map<String, Class> propertyMap,
-                                         final StringBuilder writeTo)
+    private static void writeClassName(final StringBuilder writeTo)
+    {
+        writeTo.append("@Index\n"
+                     + "private String className = this.getClass().getName();\n\n");
+    }
+
+    private static void writeMetaData(final Map<String, Class> propertyMap,
+                                      final StringBuilder writeTo)
     {
         writeTo.append(
-            "private static final Map<String, Class> _METADATA = new HashMap<String, Class>();\n"
+            "private static final Map<String, Class> XCLASS_METADATA = \n"
+            + "    new HashMap<String, Class>();\n"
             + "\n"
             + "static {\n");
         for (final Map.Entry<String, Class> e : propertyMap.entrySet()) {
-            writeTo.append("    _METADATA.put(\"")
+            writeTo.append("    XCLASS_METADATA.put(\"")
                 .append(StringEscapeUtils.escapeJava(e.getKey())).append("\", ")
                     .append(e.getValue().getName()).append(".class);\n");
         }
@@ -149,19 +170,20 @@ final class XClassConverter
     private static void writeGetMetaData(final StringBuilder writeTo)
     {
         writeTo.append(
-            "public Map<String, Class> _getMetaData()\n"
+            "public Map<String, Class> getMetaData()\n"
           + "{\n"
-          + "    return _METADATA;\n"
+          + "    return XCLASS_METADATA;\n"
           + "}\n\n");
     }
 
     private static void writeSetFields(final Map<String, Class> propertyMap,
                                        final StringBuilder writeTo)
     {
-        writeTo.append("public void _setFields(final Map<String, Object> map)\n{\n");
+        writeTo.append("public void setFields(final Map<String, Object> map)\n{\n");
         for (final String name : propertyMap.keySet()) {
-            writeTo.append("    this.").append(JavaIdentifierEscaper.escape(name))
-                .append(" = map.get(\"").append(StringEscapeUtils.escapeJava(name)).append("\");\n");
+            writeTo.append("    this.").append(JavaIdentifierEscaper.escape(name, RESERVED_WORDS))
+                .append(" = map.get(\"").append(StringEscapeUtils.escapeJava(name))
+                    .append("\");\n");
         }
         writeTo.append("}\n\n");
     }
@@ -170,14 +192,15 @@ final class XClassConverter
                                        final StringBuilder writeTo)
     {
         writeTo.append(
-              "public Map<String, Object> _getFields()\n"
+              "public Map<String, Object> getFields()\n"
             + "{\n"
             + "    final Map<String, Object> out = new HashMap<String, Object>();\n");
 
         for (final String name : propertyMap.keySet()) {
-            writeTo.append(
-                "    out.put(\"").append(StringEscapeUtils.escapeJava(name)).append("\", "
-                + "this.").append(JavaIdentifierEscaper.escape(name)).append(");\n");
+            writeTo.append("    out.put(\"")
+                .append(StringEscapeUtils.escapeJava(name)).append("\", "
+                + "this.").append(JavaIdentifierEscaper.escape(name, RESERVED_WORDS))
+                .append(");\n");
         }
         writeTo.append(
               "    return out;\n"
@@ -234,12 +257,12 @@ final class XClassConverter
                 writeTo.append("Long");
 
             } else {
-                throw new RuntimeException("Encountered a " + propClass.getName()
-                                           + " property which is not handled.");
+                throw new RuntimeException("Encountered a [" + propClass.getName()
+                                           + "] property which is not handled.");
             }
         }
         writeTo.append(" ");
-        writeTo.append(JavaIdentifierEscaper.escape(fieldName));
+        writeTo.append(JavaIdentifierEscaper.escape(fieldName, RESERVED_WORDS));
         writeTo.append(";\n\n");
     }
     

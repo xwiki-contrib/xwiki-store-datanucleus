@@ -48,7 +48,7 @@ public class PersistableObject
 
     @Index
     @PrimaryKey
-    private String identity;
+    private String id;
 
     /**
      * The PersistableClass for this object.
@@ -85,13 +85,13 @@ public class PersistableObject
         return this.persistableClass;
     }
 
-    public final void setPersistableObjectId(final String identity)
+    public final void setId(final String identity)
     {
-        this.identity = identity;
+        this.id = identity;
     }
 
-    public final String getPersistableObjectId()
+    public final String getId()
     {
-        return this.identity;
+        return this.id;
     }
 }

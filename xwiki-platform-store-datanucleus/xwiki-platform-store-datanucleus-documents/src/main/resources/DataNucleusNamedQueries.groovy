@@ -4,14 +4,14 @@ public class DataNucleusNamedQueries
       SELECT space, name, author
         FROM org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument
         WHERE objects.contains(obj)
-        VARIABLES xwiki.XWiki.WikiMacroClass
+        && obj.className == "xwiki.XWiki.WikiMacroClass"
     """;
 
     String getWatchlistJobDocuments = """
       SELECT fullName
         FROM org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument
         WHERE objects.contains(obj)
-        VARIABLES xwiki.XWiki.WatchListJob obj
+        && obj.className == "xwiki.XWiki.WatchListJob"
     """;
 
     String getTranslationList = """
@@ -26,12 +26,12 @@ public class DataNucleusNamedQueries
       SELECT DISTINCT fullName
         FROM org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument
         WHERE objects.contains(obj)
+        && obj.className == "xwiki.XWiki.XWikiGroups"
         && (
           obj.member == :username
           || obj.member == :shortname
           || obj.member == :veryshortname
         )
-        VARIABLES xwiki.XWiki.XWikiGroups obj
     """;
 
     String getSpaces = """

@@ -172,6 +172,23 @@ public class LoadStoreTest
     }
 
     @Test
+    public void testQueryForObjectOfClass() throws Exception
+    {
+        final Collection c = this.store.getQueryManager().createQuery(
+            "SELECT FROM org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument WHERE "
+          + "objects.contains(obj) "
+          + "&& obj.className == \"xwiki.XWiki.XWikiGlobalRights\" "
+          + "&& obj.levels == \"admin,edit,undelete\"", "jdoql").execute();
+        Assert.assertEquals(1, c.size());
+        final PersistableXWikiDocument xwikiPrefs = (PersistableXWikiDocument) c.toArray()[0];
+        final XWikiDocument doc = xwikiPrefs.toXWikiDocument(null);
+        Assert.assertEquals("XWiki.XWikiPreferences", doc.getFullName());
+        Assert.assertEquals("{{include document=\"XWiki.AdminSheet\" /}}", doc.getContent());
+        Assert.assertEquals("admin,edit,undelete",
+                            doc.getObject("xwiki:XWiki.XWikiGlobalRights").getStringValue("levels"));
+    }
+
+    @Test
     public void testJpqlQuery() throws Exception
     {
         final Collection c = (Collection) this.store.getQueryManager().createQuery(
@@ -187,11 +204,26 @@ public class LoadStoreTest
     public void testJpqlQueryOnObject() throws Exception
     {
         final Collection c = (Collection) this.store.getQueryManager().createQuery(
-            "SELECT doc FROM "
-          + "org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument AS doc, "
+            "SELECT doc.fullName "
+          + "FROM org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument AS doc, "
           + "IN(doc.objects) AS obj "
-          + "WHERE obj.levels = 'admin,edit,undelete'",
-        "jpql").execute();
+          + "WHERE obj.className = 'xwiki.XWiki.XWikiGlobalRights' "
+          + "AND obj.levels = 'admin,edit,undelete' "
+          + "VARIABLES ", "jpql").execute();
+
+        Assert.assertEquals(1, c.size());
+        Assert.assertEquals("XWiki.XWikiPreferences", c.toArray()[0]);
+    }
+
+    //@Test
+    public void testJpqlQueryOnObject2() throws Exception
+    {
+        final Collection c = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT doc.fullName "
+          + "FROM org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument AS doc, "
+          + "xwiki.XWiki.XWikiGlobalRights AS obj "
+          + "WHERE obj MEMBER OF doc.objects "
+          + "AND obj.levels = 'admin,edit,undelete' ", "jpql").execute();
 
         Assert.assertEquals(1, c.size());
         Assert.assertEquals("XWiki.XWikiPreferences", c.toArray()[0]);
@@ -201,11 +233,12 @@ public class LoadStoreTest
     public void testJpqlQueryOnObjectAlone() throws Exception
     {
         final Collection c = (Collection) this.store.getQueryManager().createQuery(
-            "SELECT obj.identity FROM xwiki.XWiki.XWikiGlobalRights AS obj WHERE "
-          + "obj.levels = 'admin,edit,undelete'", "jpql").execute();
+            "SELECT obj.className "
+          + "FROM xwiki.XWiki.XWikiGlobalRights AS obj "
+          + "WHERE obj.levels = 'admin,edit,undelete'", "jpql").execute();
 
         Assert.assertEquals(1, c.size());
-        Assert.assertEquals("xwiki:XWiki.XWikiPreferences.objects[0]", c.toArray()[0]);
+        Assert.assertEquals("xwiki.XWiki.XWikiGlobalRights", c.toArray()[0]);
     }
 
     @Test

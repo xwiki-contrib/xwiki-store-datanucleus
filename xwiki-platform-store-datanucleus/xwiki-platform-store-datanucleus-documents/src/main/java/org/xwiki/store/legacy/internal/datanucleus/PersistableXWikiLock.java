@@ -37,15 +37,14 @@ public class PersistableXWikiLock extends PersistableObject
 
     public PersistableXWikiLock(final XWikiLock lock)
     {
-        this.setPersistableObjectId("" + lock.getDocId());
+        this.setId("" + lock.getDocId());
         this.userName = lock.getUserName();
         this.date = lock.getDate();
     }
 
     public XWikiLock toXWikiLock()
     {
-        final XWikiLock lock =
-            new XWikiLock(Long.parseLong(this.getPersistableObjectId()), this.userName);
+        final XWikiLock lock = new XWikiLock(Long.parseLong(this.getId()), this.userName);
         lock.setDate(this.date);
         return lock;
     }

@@ -63,7 +63,7 @@ public class DataNucleusPersistableObjectStore
                 final PersistenceManager manager = this.getContext();
                 manager.setDetachAllOnCommit(true);
                 final Set<PersistableClass> classes = getClassesAndSetIds(key, value);
-                LOGGER.debug("Storing object [{}] which contains [{}] classes.", key, classes.size());
+                LOGGER.debug("Storing object [{}] with classes [{}].", key, classes.size());
                 for (final PersistableClass pc : classes) {
                     // "Internal" PCs such as PersistableXWikiDocument have 0 length
                     // and should never be stored.
@@ -112,7 +112,7 @@ public class DataNucleusPersistableObjectStore
 
         final Set<PersistableClass> out = new HashSet<PersistableClass>();
         for (final Map.Entry<String, PersistableObject> e : objectsByKey.entrySet()) {
-            e.getValue().setPersistableObjectId(e.getKey());
+            e.getValue().setId(e.getKey());
             out.add(e.getValue().getPersistableClass());
         }
         return out;
@@ -164,7 +164,7 @@ public class DataNucleusPersistableObjectStore
                 } else if (!potentiallyPersistable(type)) {
                     continue;
                 }
-                // We don't need to use reflection for this, we can do it using the jdo state manager.
+                // We don't need to use reflection for this, we can use the jdo state manager.
                 field.setAccessible(true);
                 try {
                     walkTree(id + "." + field.getName(), field.get(value), out, stack);

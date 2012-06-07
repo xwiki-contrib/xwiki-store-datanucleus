@@ -212,9 +212,7 @@ public class PersistableXWikiDocument extends PersistableObject
 
             Class<AbstractXObject> cls = null;
             for (final BaseObject obj : list) {
-                if (obj == null) {
-                    System.err.println("\n\nA baseobject was null!\n\n");
-                } else {
+                if (obj != null) {
                     if (cls == null) {
                         cls = converter.convert(obj);
                     }
@@ -271,7 +269,7 @@ public class PersistableXWikiDocument extends PersistableObject
         final XWikiDocument out = (prototype == null) ? new XWikiDocument(null) : prototype;
 
         // A new document should not have a JDO key but a loaded document will.
-        out.setNew(this.getPersistableObjectId() == null);
+        out.setNew(this.getId() == null);
 
         out.setFullName(this.fullName);
         out.setName(this.name);
