@@ -21,13 +21,9 @@ package org.xwiki.store.legacy.internal.datanucleus;
 
 import java.util.Map;
 
-import javax.jdo.annotations.Inheritance;
-import javax.jdo.annotations.InheritanceStrategy;
-import javax.jdo.annotations.PersistenceCapable;
-import org.xwiki.store.objects.PersistableObject;
-
-@PersistenceCapable(detachable="true")
-@Inheritance(strategy=InheritanceStrategy.SUPERCLASS_TABLE)
-public abstract class AbstractXObject extends PersistableObject implements XObject
+public interface XObject
 {
+    Map<String, Class> getMetaData();
+    Map<String, Object> getFields();
+    void setFields(final Map<String, Object> map);
 }

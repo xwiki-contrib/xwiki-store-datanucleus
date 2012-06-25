@@ -32,7 +32,9 @@ import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
 import com.xpn.xwiki.XWikiException;
 import com.xpn.xwiki.objects.BaseObject;
+import com.xpn.xwiki.objects.BaseProperty;
 import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.objects.classes.PropertyClass;
 import javax.jdo.annotations.Discriminator;
 import javax.jdo.annotations.DiscriminatorStrategy;
 import javax.jdo.annotations.Element;
@@ -55,87 +57,68 @@ import org.xwiki.model.reference.EntityReference;
 
 @PersistenceCapable(detachable="true")
 @Inheritance(strategy=InheritanceStrategy.SUPERCLASS_TABLE)
-public class PersistableXWikiDocument extends PersistableObject
+class PersistableXWikiDocument extends PersistableObject
 {
     /* XWikiDocument fields. */
     @Index
-    public String fullName;
+    private String fullName;
 
     @Index
-    public String name;
+    private String name;
 
-    @Persistent
-    public String title;
-
-    @Index
-    public String language;
-
-    @Persistent
-    public String defaultLanguage;
-
-    @Persistent
-    public int translation;
-
-    @Persistent
-    public Date date;
-
-    @Persistent
-    public Date contentUpdateDate;
-
-    @Persistent
-    public Date creationDate;
-
-    @Persistent
-    public String author;
-
-    @Persistent
-    public String contentAuthor;
-
-    @Persistent
-    public String creator;
+    private String title;
 
     @Index
-    public String space;
+    private String language;
 
-    @Persistent
-    public String content;
+    private String defaultLanguage;
 
-    @Persistent
-    public String version;
+    private int translation;
 
-    @Persistent
-    public String customClass;
+    private Date date;
 
-    @Index
-    public String parent;
+    private Date contentUpdateDate;
 
-    @Persistent
-    public String xClassXML;
+    private Date creationDate;
 
-    @Persistent
-    public int elements;
+    private String author;
 
-    @Persistent
-    public String defaultTemplate;
+    private String contentAuthor;
 
-    @Persistent
-    public String validationScript;
-
-    @Persistent
-    public String comment;
-
-    @Persistent
-    public boolean isMinorEdit;
-
-    @Persistent
-    public String syntaxId;
+    private String creator;
 
     @Index
-    public boolean hidden;
+    private String space;
+
+    private String content;
+
+    private String version;
+
+    private String customClass;
+
+    @Index
+    private String parent;
+
+    private String xClassXML;
+
+    private int elements;
+
+    private String defaultTemplate;
+
+    private String validationScript;
+
+    private String comment;
+
+    private boolean isMinorEdit;
+
+    private String syntaxId;
+
+    @Index
+    private boolean hidden;
 
     /** The wiki where this document belongs. */
     @Persistent
-    public String wiki;
+    private String wiki;
 
     /**
      * Objects.
@@ -147,18 +130,26 @@ public class PersistableXWikiDocument extends PersistableObject
     @Persistent(defaultFetchGroup="true")
     @Element(dependent="true")
     @Index
-    public List<AbstractXObject> objects;
+    private List<AbstractXObject> objects;
 
     @Persistent(defaultFetchGroup="true")
     @Element(dependent="true")
-    public Map<String, PersistableXWikiAttachment> attachments;
+    private Map<String, PersistableXWikiAttachment> attachments;
 
-    public PersistableXWikiDocument()
+    /**
+     * The PersistableClass defined in this document.
+     * This is set if the class changes
+     * and it will be persisted manually by DataNucleusXWikiDocumentStore.
+     */
+    @NotPersistent
+    private PersistableClass persistableClass;
+
+    PersistableXWikiDocument()
     {
         // do nothing.
     }
 
-    public void fromXWikiDocument(final XWikiDocument toClone)
+    void fromXWikiDocument(final XWikiDocument toClone)
     {
         this.fullName = toClone.getFullName();
         this.name = toClone.getName();
@@ -195,26 +186,153 @@ public class PersistableXWikiDocument extends PersistableObject
 
         final PersistableClassLoader pcl =
             (PersistableClassLoader) Thread.currentThread().getContextClassLoader();
-        this.objects = xObjectsToObjects(toClone.getXObjects(), pcl);
+
+        // Check if the class has been altered.
+        if (!this.xClassXML.equals(toClone.getXClassXML())
+            && toClone.getXClass().getFieldList().size() != 0)
+        {
+            // Otherwise make a new PersistableClass
+            this.persistableClass = convertXClass(toClone.getXClass(), pcl);
+        }
+
+        this.objects = (List) xObjectsToObjects(toClone.getXObjects(), pcl);
 
         this.attachments = xAttachmentsToPersistableAttachments(toClone.getAttachmentList());
     }
 
-    private static List<AbstractXObject> xObjectsToObjects(
+    XWikiDocument toXWikiDocument(final XWikiDocument prototype)
+    {
+        final XWikiDocument out = (prototype == null) ? new XWikiDocument(null) : prototype;
+
+        // A new document should not have a JDO key but a loaded document will.
+        out.setNew(this.getId() == null);
+
+        out.setFullName(this.fullName);
+        out.setName(this.name);
+        out.setTitle(this.title);
+        out.setLanguage(this.language);
+        out.setDefaultLanguage(this.defaultLanguage);
+        out.setTranslation(this.translation);
+        out.setDate(this.date);
+        out.setContentUpdateDate(this.contentUpdateDate);
+        out.setCreationDate(this.creationDate);
+        out.setAuthor(this.author);
+        out.setContentAuthor(this.contentAuthor);
+        out.setCreator(this.creator);
+        out.setSpace(this.space);
+        out.setContent(this.content);
+        out.setVersion(this.version);
+        out.setCustomClass(this.customClass);
+        out.setParent(this.parent);
+        out.setXClassXML(this.xClassXML);
+        out.setElements(this.elements);
+        out.setDefaultTemplate(this.defaultTemplate);
+        out.setValidationScript(this.validationScript);
+        out.setComment(this.comment);
+        out.setMinorEdit(this.isMinorEdit);
+        out.setSyntaxId(this.syntaxId);
+        out.setHidden(this.hidden);
+
+        out.setDatabase(this.wiki);
+
+        final String cxml = this.xClassXML;
+        if (cxml != null) {
+            try {
+                out.getXClass().fromXML(cxml);
+            } catch (XWikiException e) {
+                throw new RuntimeException("Failed to deserialize xml class", e);
+            }
+        }
+
+        if (this.objects != null) {
+            // TODO This cast is dirty, need to figure out a better way
+            out.setXObjects(objectsToXObjects(((List) this.objects), out.getDocumentReference()));
+        }
+
+        if (this.attachments != null) {
+            out.setAttachmentList(persistableAttachmentsToXWikiAttachments(this.attachments, out));
+        }
+
+        return out;
+    }
+
+    /** Get the PersistableClass defined in this XDoc if any. */
+    PersistableClass getDefinedPersistableClass()
+    {
+        return this.persistableClass;
+    }
+
+
+    //------------------- Static Functions ---------------------//
+
+    private static PersistableClass<XObject> convertXClass(final BaseClass xclass,
+                                                           final PersistableClassLoader loader)
+    {
+        final String className =
+            JavaClassNameDocumentReferenceSerializer.serializeRef(xclass.getDocumentReference(),
+                                                                  null);
+        Class<XObject> storedClass = null;
+        try {
+            // If there's a stored class, we merge fields in the stored class with fields in the new class.
+            storedClass = (Class<XObject>) loader.asNativeLoader().loadClass(className);
+        } catch (ClassNotFoundException e) {
+            // No class.
+        }
+
+        // Get the properties from the stored class.
+        final Map<String, Class> storedPropertyMap;
+        if (storedClass != null) {
+            final XObject xo;
+            try {
+                xo = storedClass.getConstructor().newInstance();
+            } catch (Exception e) {
+                throw new RuntimeException(
+                    "Failed to create new instance of [" + storedClass.getName() + "]", e);
+            }
+            storedPropertyMap = xo.getMetaData();
+        } else {
+            storedPropertyMap = new HashMap<String, Class>();
+        }
+
+        // Get the properties from the new class.
+        final Map<String, Class> propertyMap = new HashMap<String, Class>();
+        for (final String fieldName : xclass.getPropertyNames()) {
+            if (fieldName != null) {
+                final PropertyClass field = (PropertyClass) xclass.getField(fieldName);
+                final BaseProperty prop = field.newProperty();
+                propertyMap.put(fieldName, prop.getClass());
+            }
+        }
+
+        // TODO: For any property which is not in the new class version but is in the old class version,
+        //       search for PersistableObjects containing this property, if there are none, remove the property.
+        //       This is needed to fully support removing properties from a class. Right now the classes will
+        //       grow forever even though it will not affect the XClass presented to the user.
+
+        // TODO: If there is a field with the same name in both the new and old fields and it has the same type,
+        //       all objects must be scanned and those with that field must have it removed as it will otherwise
+        //       confuse the serializer.
+
+        storedPropertyMap.putAll(propertyMap);
+        return new XClassConverter(loader).convert(xclass.getDocumentReference(), storedPropertyMap);
+    }
+
+
+    private static List<XObject> xObjectsToObjects(
         final Map<DocumentReference, List<BaseObject>> xObjects,
         final PersistableClassLoader loader)
     {
-        final List<AbstractXObject> out = new ArrayList<AbstractXObject>();
+        final List<XObject> out = new ArrayList<XObject>();
         final XClassConverter converter = new XClassConverter(loader);
 
         for (final DocumentReference ref : xObjects.keySet()) {
             final List<BaseObject> list = xObjects.get(ref);
 
-            Class<AbstractXObject> cls = null;
+            Class<XObject> cls = null;
             for (final BaseObject obj : list) {
                 if (obj != null) {
                     if (cls == null) {
-                        cls = converter.convert(obj);
+                        cls = converter.convert(obj).getNativeClass();
                     }
                     out.add(XObjectConverter.convertFromXObject(obj, cls));
                 }
@@ -264,61 +382,6 @@ public class PersistableXWikiDocument extends PersistableObject
         return out;
     }
 
-    public XWikiDocument toXWikiDocument(final XWikiDocument prototype)
-    {
-        final XWikiDocument out = (prototype == null) ? new XWikiDocument(null) : prototype;
-
-        // A new document should not have a JDO key but a loaded document will.
-        out.setNew(this.getId() == null);
-
-        out.setFullName(this.fullName);
-        out.setName(this.name);
-        out.setTitle(this.title);
-        out.setLanguage(this.language);
-        out.setDefaultLanguage(this.defaultLanguage);
-        out.setTranslation(this.translation);
-        out.setDate(this.date);
-        out.setContentUpdateDate(this.contentUpdateDate);
-        out.setCreationDate(this.creationDate);
-        out.setAuthor(this.author);
-        out.setContentAuthor(this.contentAuthor);
-        out.setCreator(this.creator);
-        out.setSpace(this.space);
-        out.setContent(this.content);
-        out.setVersion(this.version);
-        out.setCustomClass(this.customClass);
-        out.setParent(this.parent);
-        out.setXClassXML(this.xClassXML);
-        out.setElements(this.elements);
-        out.setDefaultTemplate(this.defaultTemplate);
-        out.setValidationScript(this.validationScript);
-        out.setComment(this.comment);
-        out.setMinorEdit(this.isMinorEdit);
-        out.setSyntaxId(this.syntaxId);
-        out.setHidden(this.hidden);
-
-        out.setDatabase(this.wiki);
-
-        final String cxml = this.xClassXML;
-        if (cxml != null) {
-            try {
-                out.getXClass().fromXML(cxml);
-            } catch (XWikiException e) {
-                throw new RuntimeException("Failed to deserialize xml class", e);
-            }
-        }
-
-        if (this.objects != null) {
-            out.setXObjects(objectsToXObjects(this.objects, out.getDocumentReference()));
-        }
-
-        if (this.attachments != null) {
-            out.setAttachmentList(persistableAttachmentsToXWikiAttachments(this.attachments, out));
-        }
-
-        return out;
-    }
-
     private static List<XWikiAttachment> persistableAttachmentsToXWikiAttachments(
         final Map<String, PersistableXWikiAttachment> attachments,
         final XWikiDocument attachedTo)
@@ -331,19 +394,19 @@ public class PersistableXWikiDocument extends PersistableObject
     }
 
     private static Map<DocumentReference,
-                       List<BaseObject>> objectsToXObjects(final List<AbstractXObject> objects,
+                       List<BaseObject>> objectsToXObjects(final List<XObject> objects,
                                                            final DocumentReference docAttachedTo)
     {
         // Convert the objects.
-        final Map<String, List<AbstractXObject>> unconverted = mapObjectsByClassName(objects);
+        final Map<String, List<XObject>> unconverted = mapObjectsByClassName(objects);
         final Map<DocumentReference, List<BaseObject>> out =
             new TreeMap<DocumentReference, List<BaseObject>>();
 
-        for (final Map.Entry<String, List<AbstractXObject>> e : unconverted.entrySet()) {
+        for (final Map.Entry<String, List<XObject>> e : unconverted.entrySet()) {
             final DocumentReference classRef =
                 JavaClassNameDocumentReferenceSerializer.resolveRef(e.getKey(), null);
 
-            final List<AbstractXObject> unconvertedList = e.getValue();
+            final List<XObject> unconvertedList = e.getValue();
             final List<BaseObject> outList = new ArrayList<BaseObject>(unconvertedList.size());
             for (int i = 0; i < unconvertedList.size(); i++) {
                 final BaseObject xwikiObj =
@@ -369,15 +432,14 @@ public class PersistableXWikiDocument extends PersistableObject
      * @param unmapped a list of Objects.
      * @return a Map of Object lists by class name, ordered the same as the input list.
      */
-    private static Map<String, List<AbstractXObject>> mapObjectsByClassName(
-        final List<AbstractXObject> unmapped)
+    private static Map<String, List<XObject>> mapObjectsByClassName(final List<XObject> unmapped)
     {
-        final Map<String, List<AbstractXObject>> out =
-            new TreeMap<String, List<AbstractXObject>>();
+        final Map<String, List<XObject>> out =
+            new TreeMap<String, List<XObject>>();
         boolean outOfOrder = false;
         Class currentClass = null;
-        List<AbstractXObject> currentList = null;
-        for (final AbstractXObject obj : unmapped) {
+        List<XObject> currentList = null;
+        for (final XObject obj : unmapped) {
             if (obj.getClass() != currentClass) {
                 currentClass = obj.getClass();
                 if (out.containsKey(currentClass.getName())) {
@@ -386,7 +448,7 @@ public class PersistableXWikiDocument extends PersistableObject
                     // catistrophicly because we are expecting them to be in order.
                     outOfOrder = true;
                 }
-                currentList = new ArrayList<AbstractXObject>();
+                currentList = new ArrayList<XObject>();
                 out.put(currentClass.getName(), currentList);
             }
             currentList.add(obj);
@@ -394,11 +456,11 @@ public class PersistableXWikiDocument extends PersistableObject
         if (outOfOrder) {
             // If this happens then we need to be careful and index over every entry to correct
             // the order.
-            for (final List<AbstractXObject> list : out.values()) {
+            for (final List<XObject> list : out.values()) {
                 list.clear();
             }
             for (final String className : out.keySet()) {
-                for (final AbstractXObject obj : unmapped) {
+                for (final XObject obj : unmapped) {
                     out.get(obj.getClass().getName()).add(obj);
                 }
             }

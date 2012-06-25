@@ -92,13 +92,13 @@ public class DataNucleusSearchEngine implements SearchEngine
             protected void onRun()
             {
                 final Query query = this.getContext().newQuery(PersistableClass.class);
-                //query.setFilter("xClassXML != null");
-                final Collection<PersistableClass> classes =
-                    (Collection<PersistableClass>) query.execute();
+                final Collection<PersistableClass> classes = (Collection) query.execute();
 
                 for (final PersistableClass klass : classes) {
-                    if (klass.getName().startsWith("xwiki.")) {
-                        out.add(klass.getName());
+                    // TODO fix mess
+                    final String className = klass.getName();
+                    if (className.startsWith("xwiki.")) {
+                        out.add("xwiki:" + className.substring(6));
                     }
                 }
             }

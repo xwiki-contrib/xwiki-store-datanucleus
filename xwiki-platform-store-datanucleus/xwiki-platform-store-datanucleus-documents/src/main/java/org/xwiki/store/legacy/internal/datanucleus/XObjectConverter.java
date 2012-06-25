@@ -55,26 +55,27 @@ import org.xwiki.store.UnexpectedException;
 
 class XObjectConverter
 {
-    public static AbstractXObject convertFromXObject(final BaseObject xwikiObject,
-                                                     final Class<AbstractXObject> objectClass)
+    public static XObject convertFromXObject(final BaseObject xwikiObject,
+                                             final Class<XObject> objectClass)
     {
         // Sanity check
         final String className = JavaClassNameDocumentReferenceSerializer.serializeRef(
             xwikiObject.getXClassReference(), null);
         if (!objectClass.getName().equals(className)) {
-            throw new UnexpectedException("The provided class " + objectClass.getName()
-                                          + " does not match the class name of the XWiki object "
-                                          + className);
+            throw new UnexpectedException("The provided class [" + objectClass.getName()
+                                          + "] does not match the class name of the XWiki object ["
+                                          + className + "]");
         }
 
-        final AbstractXObject out;
+        final XObject out;
         try {
             out = objectClass.newInstance();
         } catch (Exception e) {
-            throw new RuntimeException("Could not instanciate the class " + objectClass.getName());
+            throw new RuntimeException("Could not instanciate the class "
+                                       + "[" + objectClass.getName() + "]");
         }
 
-        Map<String, Object> propertyValues = new HashMap<String, Object>();
+        final Map<String, Object> propertyValues = new HashMap<String, Object>();
         for (final String name : xwikiObject.getPropertyList()) {
             propertyValues.put(name, ((BaseProperty) xwikiObject.getField(name)).getValue());
         }
@@ -83,7 +84,7 @@ class XObjectConverter
         return out;
     }
 
-    public static BaseObject convertToXObject(final AbstractXObject persistable)
+    public static BaseObject convertToXObject(final XObject persistable)
     {
         final BaseObject out = new BaseObject();
         final DocumentReference classRef =

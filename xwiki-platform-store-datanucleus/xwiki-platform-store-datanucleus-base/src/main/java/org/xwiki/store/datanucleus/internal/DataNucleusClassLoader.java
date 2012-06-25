@@ -58,14 +58,17 @@ public class DataNucleusClassLoader extends AbstractPersistableClassLoader
     protected PersistableClass getClassFromStorage(final String name) throws ClassNotFoundException
     {
         final PersistenceManager manager = this.managers.get();
+
+        if (manager == null) {
+            throw new IllegalStateException("No PersistenceManager was set for this thread, "
+                                            + "is this ClassLoader being used outside of a "
+                                            + "TransactionRunnable?");
+        }
+
         try {
             return manager.getObjectById(PersistableClass.class, name);
         } catch (JDOObjectNotFoundException e) {
             throw new ClassNotFoundException();
-        } catch (NullPointerException e) {
-            throw new NullPointerException("No PersistenceManager was set for this thread, "
-                                           + "is this ClassLoader being used outside of a "
-                                           + "TransactionRunnable?");
         }
     }
 }

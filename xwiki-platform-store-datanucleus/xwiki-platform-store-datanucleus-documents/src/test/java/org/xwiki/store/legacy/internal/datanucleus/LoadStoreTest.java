@@ -28,6 +28,8 @@ import java.util.Collection;
 
 import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.objects.classes.BaseClass;
+import com.xpn.xwiki.objects.classes.StringClass;
 import com.xpn.xwiki.store.XWikiAttachmentStoreInterface;
 import com.xpn.xwiki.store.XWikiStoreInterface;
 import com.xpn.xwiki.web.Utils;
@@ -127,23 +129,20 @@ public class LoadStoreTest
         this.store.saveXWikiDoc(xwikiPrefs, null);
 
         Assert.assertEquals(0, store.getTranslationList(xwikiPrefs, null).size());
+    }
 
-        // Query
+    @Test
+    public void testXWikiDocumentClass() throws Exception
+    {
+        final XWikiDocument xdoc = new XWikiDocument(new DocumentReference("xwiki", "Test", "TestClass"));
+        this.store.saveXWikiDoc(xdoc, null);
 
+        Assert.assertFalse(this.store.getClassList(null).contains("xwiki:Test.TestClass"));
 
-
-        /*Collection c = (Collection)
-            this.manager.newQuery("javax.jdo.query.JPQL", "SELECT doc FROM "
-                                  + PersistableXWikiDocument.class.getName() + " as doc WHERE "
-                                  + "doc.fullName = 'XWiki.XWikiPreferences'").execute();*/
-
-
-/*
-        Assert.assertEquals(c.size(), 1);
-        //System.out.println(c.iterator().next().toString());
-        Assert.assertEquals("Me | Not indexed | Generated persistance capable class! | GroovyClass | "
-                              +"MeMeMe | ni | I am a nested object, yay! | GroovyClass#2 | null",
-                            c.iterator().next().toString());*/
+        final BaseClass xclass = xdoc.getXClass();
+        xclass.addField("string", new StringClass());
+        this.store.saveXWikiDoc(xdoc, null);
+        Assert.assertTrue(this.store.getClassList(null).contains("xwiki:Test.TestClass"));
     }
 
     @Test
@@ -236,7 +235,6 @@ public class LoadStoreTest
             "SELECT obj.className "
           + "FROM xwiki.XWiki.XWikiGlobalRights AS obj "
           + "WHERE obj.levels = 'admin,edit,undelete'", "jpql").execute();
-
         Assert.assertEquals(1, c.size());
         Assert.assertEquals("xwiki.XWiki.XWikiGlobalRights", c.toArray()[0]);
     }

@@ -12,6 +12,8 @@
 
   <groupId>org.xwiki.platform</groupId>
   <artifactId>xwiki-platform-store-datanucleus-documents</artifactId>
+  <name>XWiki Platform - Store - DataNucleus - Documents</name>
+  <description>DataNucleus based XWikiDocument and Model 1.0 store</description>
   <packaging>jar</packaging>
 
   <properties>

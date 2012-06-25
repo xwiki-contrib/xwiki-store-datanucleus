@@ -35,6 +35,7 @@ import org.xwiki.model.reference.DocumentReference;
 import org.xwiki.store.attachments.newstore.internal.AttachmentContentStore;
 import org.xwiki.store.datanucleus.internal.DataNucleusPersistableObjectStore;
 import org.xwiki.store.legacy.internal.XWikiDocumentStore;
+import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.objects.PersistableObject;
 import org.xwiki.store.StartableTransactionRunnable;
 import org.xwiki.store.TransactionException;
@@ -70,9 +71,19 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
         // Conversion from XWikiDocument to PersistableXWikiDocument must be done
         // after the thread context ClassLoader has been switched.
         (new TransactionRunnable<PersistenceManager>() {
+            @Override
             protected void onPreRun()
             {
                 pxd.fromXWikiDocument(doc);
+            }
+
+            @Override
+            protected void onRun()
+            {
+                final PersistableClass dpc = pxd.getDefinedPersistableClass();
+                if (dpc != null) {
+                    this.getContext().makePersistent(dpc);
+                }
             }
         }).runIn(storeRunnable);
 

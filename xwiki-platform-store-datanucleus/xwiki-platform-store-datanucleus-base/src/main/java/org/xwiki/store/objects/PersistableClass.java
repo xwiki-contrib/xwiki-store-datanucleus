@@ -39,7 +39,7 @@ import javax.jdo.JDOObjectNotFoundException;
     identityType = IdentityType.APPLICATION,
     detachable = "true"
 )
-public class PersistableClass<T extends PersistableObject>
+public class PersistableClass<T>
 {
     /** The name of the class. */
     @Index
