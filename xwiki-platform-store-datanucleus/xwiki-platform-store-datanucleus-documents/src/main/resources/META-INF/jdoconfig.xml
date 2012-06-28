@@ -9,7 +9,7 @@
               value="org.datanucleus.jdo.JDOPersistenceManagerFactory" />
 
     <property name="javax.jdo.option.ConnectionURL"
-              value="cassandra:XWikiPool:true:false:10000:xwiki:19160:127.0.0.1" />
+              value="cassandra:XWikiPool:true:true:10000:xwiki:19160:127.0.0.1" />
     <!-- cassandra
          :poolname
          :<true|false, framed transport>
