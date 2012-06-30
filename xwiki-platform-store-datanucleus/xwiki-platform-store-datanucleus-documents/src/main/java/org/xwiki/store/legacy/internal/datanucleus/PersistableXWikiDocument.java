@@ -157,11 +157,20 @@ class PersistableXWikiDocument extends PersistableObject
         this.language = toClone.getLanguage();
         this.defaultLanguage = toClone.getDefaultLanguage();
         this.translation = toClone.getTranslation();
-        this.date = toClone.getDate();
-        this.contentUpdateDate = toClone.getContentUpdateDate();
         this.creationDate = toClone.getCreationDate();
         this.author = toClone.getAuthor();
-        this.contentAuthor = toClone.getContentAuthor();
+
+        // This is a special case which is handled in XWikiHibernateStore#saveXWikiDoc()
+        final Date now = new Date();
+        this.date = now;
+        if (toClone.isContentDirty()) {
+            this.contentUpdateDate = now;
+            this.contentAuthor = toClone.getAuthor();
+        } else {
+            this.contentUpdateDate = toClone.getContentUpdateDate();
+            this.contentAuthor = toClone.getContentAuthor();
+        }
+
         this.creator = toClone.getCreator();
         this.space = toClone.getSpace();
         this.content = toClone.getContent();
