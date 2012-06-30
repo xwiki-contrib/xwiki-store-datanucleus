@@ -50,13 +50,13 @@ public class GroovyPersistableClassCompiler
         final GroovyClass gclass = (GroovyClass) cu.getClasses().get(0);
 
         // Load
-        final GroovyClassLoader loader = new GroovyClassLoader();
-        final Class cls = loader.defineClass(gclass.getName(), gclass.getBytes());
+        final GroovyClassLoader groovyLoader = new GroovyClassLoader(this.loader.asNativeLoader().getParent());
+        final Class cls = groovyLoader.defineClass(gclass.getName(), gclass.getBytes());
         //final String className = cls.getName();
 
         // Enhance!
         final JDOEnhancer enhancer = JDOHelper.getEnhancer();
-        enhancer.setClassLoader(loader);
+        enhancer.setClassLoader(groovyLoader);
         enhancer.addClass(gclass.getName(), gclass.getBytes());
         enhancer.enhance();
         final byte[] enhancedClass = enhancer.getEnhancedBytes(gclass.getName());
