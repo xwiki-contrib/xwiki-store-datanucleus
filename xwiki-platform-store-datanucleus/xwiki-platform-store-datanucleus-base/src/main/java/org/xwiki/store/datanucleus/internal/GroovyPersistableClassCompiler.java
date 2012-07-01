@@ -25,6 +25,7 @@ import javax.jdo.JDOHelper;
 import org.codehaus.groovy.control.Phases;
 import org.codehaus.groovy.tools.GroovyClass;
 import org.codehaus.groovy.control.CompilationUnit;
+import org.datanucleus.jdo.JDODataNucleusEnhancer;
 import org.xwiki.store.objects.PersistableClass;
 import org.xwiki.store.objects.PersistableClassLoader;
 
@@ -50,16 +51,25 @@ public class GroovyPersistableClassCompiler
         final GroovyClass gclass = (GroovyClass) cu.getClasses().get(0);
 
         // Load
-        final GroovyClassLoader groovyLoader = new GroovyClassLoader(this.loader.asNativeLoader().getParent());
+        final GroovyClassLoader groovyLoader =
+            new GroovyClassLoader(
+                new BlockingClassLoader(this.loader.asNativeLoader(), gclass.getName()));
         final Class cls = groovyLoader.defineClass(gclass.getName(), gclass.getBytes());
-        //final String className = cls.getName();
 
         // Enhance!
-        final JDOEnhancer enhancer = JDOHelper.getEnhancer();
-        enhancer.setClassLoader(groovyLoader);
-        enhancer.addClass(gclass.getName(), gclass.getBytes());
-        enhancer.enhance();
-        final byte[] enhancedClass = enhancer.getEnhancedBytes(gclass.getName());
+        // It is critical that if there are old versions of the same class,
+        // the enhancer can only access the newest version.
+        final ClassLoader oldClassLoader = Thread.currentThread().getContextClassLoader();
+        final byte[] enhancedClass;
+        try {
+            Thread.currentThread().setContextClassLoader(groovyLoader);
+            final JDOEnhancer enhancer = new JDODataNucleusEnhancer();
+            enhancer.addClass(gclass.getName(), gclass.getBytes());
+            enhancer.enhance();
+            enhancedClass = enhancer.getEnhancedBytes(gclass.getName());
+        } finally {
+            Thread.currentThread().setContextClassLoader(oldClassLoader);
+        }
 
         return this.loader.definePersistableClass(gclass.getName(), enhancedClass);
     }

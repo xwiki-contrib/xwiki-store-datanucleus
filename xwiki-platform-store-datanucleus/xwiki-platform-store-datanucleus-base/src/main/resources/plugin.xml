@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<plugin id="mydomain" name="DataNucleus plug-ins" provider-name="My Company">
+    <extension point="org.datanucleus.classloader_resolver">
+        <class-loader-resolver
+            name="UpdatingJDOClassLoaderResolver"
+            class-name="org.xwiki.store.datancleus.internal.UpdatingJDOClassLoaderResolver"
+        />
+    </extension>
+
+    <!--
+      * TODO: This is not a documented extension point, either:
+      * A. Offer a patch to do the same unloading if a new class with a different serialVersionID is loaded.
+      * B. Offer a patch to make this a public extension point.
+      -->
+    <extension point="org.datanucleus.metadata_manager">
+        <meta-data-manager
+            name="JDO"
+            class="org.xwiki.store.datanucleus.internal.UnloadingJDOMetaDataManager"
+        />
+    </extension>
+</plugin>

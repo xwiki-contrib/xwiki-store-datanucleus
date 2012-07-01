@@ -21,7 +21,7 @@ package org.xwiki.store.datanucleus.cassandra.internal;
 
 import javax.jdo.PersistenceManager;
 import javax.jdo.Transaction;
-import org.xwiki.store.datanucleus.DataNucleusClassLoader;
+import org.xwiki.store.datanucleus.internal.DataNucleusClassLoader;
 import org.xwiki.store.StartableTransactionRunnable;
 
 /**

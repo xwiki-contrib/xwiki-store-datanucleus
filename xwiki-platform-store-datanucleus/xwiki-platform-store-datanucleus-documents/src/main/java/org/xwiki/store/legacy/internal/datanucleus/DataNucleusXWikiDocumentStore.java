@@ -64,6 +64,7 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
         final String key = PersistableXWikiDocument.keyGen(doc);
 
         final PersistableXWikiDocument pxd = new PersistableXWikiDocument();
+        pxd.fromXWikiDocument(doc);
 
         final TransactionRunnable<PersistenceManager> storeRunnable =
             this.objStore.getStoreTransactionRunnable(key, pxd);
@@ -74,7 +75,7 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
             @Override
             protected void onPreRun()
             {
-                pxd.fromXWikiDocument(doc);
+                pxd.convertObjects();
             }
 
             @Override
@@ -101,7 +102,8 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
         try {
             transaction.start();
         } catch (TransactionException e) {
-            throw new UnexpectedException("Failed to store XWikiDocument [" + doc + "]", e);
+            throw new UnexpectedException("Failed to store XWikiDocument [" + doc + "] with Transaction ["
+                                          + transaction + "]", e);
         }
     }
 

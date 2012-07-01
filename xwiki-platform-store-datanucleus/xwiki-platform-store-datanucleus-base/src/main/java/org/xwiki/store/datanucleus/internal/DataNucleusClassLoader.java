@@ -45,6 +45,11 @@ public class DataNucleusClassLoader extends AbstractPersistableClassLoader
 
     public void setPersistenceManager(final PersistenceManager manager)
     {
+        if (this.managers.get() != null) {
+            throw new RuntimeException("Can't set PersistenceManager for this PersistableClassLoader "
+                                       + "because one is already set and reentrent transactions are "
+                                       + "not supported");
+        }
         this.managers.set(manager);
     }
 
