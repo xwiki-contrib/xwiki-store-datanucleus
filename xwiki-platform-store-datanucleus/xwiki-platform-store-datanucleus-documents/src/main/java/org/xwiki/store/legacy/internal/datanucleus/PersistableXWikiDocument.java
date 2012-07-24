@@ -99,6 +99,7 @@ class PersistableXWikiDocument extends PersistableObject
     @Index
     private String parent;
 
+    @Index
     private String xClassXML;
 
     private int elements;
@@ -168,12 +169,6 @@ class PersistableXWikiDocument extends PersistableObject
         this.version = toClone.getVersion();
         this.customClass = toClone.getCustomClass();
         this.parent = toClone.getParent();
-
-        // This one is special since XWikiDocument.getXClassXML() does not reflect the current state
-        // Of the XClass but is rather a holding place for the XML.
-        // The storage engine is expected to update it.
-        this.xClassXML = toClone.getXClass().toXMLString();
-
         this.elements = toClone.getElements();
         this.defaultTemplate = toClone.getDefaultTemplate();
         this.validationScript = toClone.getValidationScript();
@@ -188,11 +183,13 @@ class PersistableXWikiDocument extends PersistableObject
             (PersistableClassLoader) Thread.currentThread().getContextClassLoader();
 
         // Check if the class has been altered.
-        if (!this.xClassXML.equals(toClone.getXClassXML())
-            && toClone.getXClass().getFieldList().size() != 0)
-        {
-            // Otherwise make a new PersistableClass
-            this.persistableClass = convertXClass(toClone.getXClass(), pcl);
+        if (toClone.getXClass().getFieldList().size() > 0) {
+            this.xClassXML = toClone.getXClass().toXMLString();
+            if (!this.xClassXML.equals(toClone.getXClassXML())) {
+                // make a new PersistableClass
+// TODO make this work without poisoning DN caches
+                //this.persistableClass = convertXClass(toClone.getXClass(), pcl);
+            }
         }
 
         this.objects = (List) xObjectsToObjects(toClone.getXObjects(), pcl);

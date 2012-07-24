@@ -91,16 +91,10 @@ public class DataNucleusSearchEngine implements SearchEngine
         (new TransactionRunnable<PersistenceManager>() {
             protected void onRun()
             {
-                final Query query = this.getContext().newQuery(PersistableClass.class);
-                final Collection<PersistableClass> classes = (Collection) query.execute();
-
-                for (final PersistableClass klass : classes) {
-                    // TODO fix mess
-                    final String className = klass.getName();
-                    if (className.startsWith("xwiki.")) {
-                        out.add("xwiki:" + className.substring(6));
-                    }
-                }
+                out.addAll((Collection) this.getContext().newQuery("JDOQL",
+                    "select id "
+                  + "from org.xwiki.store.legacy.internal.datanucleus.PersistableXWikiDocument "
+                  + "where xClassXML != null").execute());
             }
         }).runIn(transaction);
 

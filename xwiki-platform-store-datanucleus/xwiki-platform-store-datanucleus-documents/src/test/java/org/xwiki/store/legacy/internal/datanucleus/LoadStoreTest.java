@@ -28,8 +28,10 @@ import java.util.Collection;
 
 import com.xpn.xwiki.doc.XWikiAttachment;
 import com.xpn.xwiki.doc.XWikiDocument;
+import com.xpn.xwiki.objects.BaseObject;
 import com.xpn.xwiki.objects.classes.BaseClass;
 import com.xpn.xwiki.objects.classes.StringClass;
+import com.xpn.xwiki.objects.classes.NumberClass;
 import com.xpn.xwiki.store.XWikiAttachmentStoreInterface;
 import com.xpn.xwiki.store.XWikiStoreInterface;
 import com.xpn.xwiki.web.Utils;
@@ -61,6 +63,8 @@ import org.xwiki.store.attachments.adapter.internal.FilesystemDataNucleusAttachm
 public class LoadStoreTest
 {
     private XWikiStoreInterface store;
+
+    private XWikiContext xcontext;
 
     @BeforeClass
     public static void init() throws Exception
@@ -108,6 +112,8 @@ public class LoadStoreTest
     public void setUp() throws Exception
     {
         this.store = Utils.getComponent(XWikiStoreInterface.class, "datanucleus");
+        this.xcontext = (XWikiContext) Utils.getComponent(Execution.class).getContext().getProperty("xwikicontext");
+        this.xcontext.getWiki().setStore(this.store);
     }
 
     @Test
@@ -143,6 +149,40 @@ public class LoadStoreTest
         xclass.addField("string", new StringClass());
         this.store.saveXWikiDoc(xdoc, null);
         Assert.assertTrue(this.store.getClassList(null).contains("xwiki:Test.TestClass"));
+
+        xclass.addField("number", new NumberClass());
+        this.store.saveXWikiDoc(xdoc, null);
+
+        Collection c;
+/*
+        c = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT cls.bytes FROM "
+          + "org.xwiki.store.objects.PersistableClass AS cls "
+          + "WHERE cls.name = 'xwiki.Test.TestClass'", "jpql").execute();
+*/
+        //Assert.assertEquals(1, c.size());
+        //final byte[] byteCode = (byte[]) c.toArray()[0];
+        Class cls;/* = (new ClassLoader() {{
+            this.defineClass("xwiki.Test.TestClass", byteCode, 0, byteCode.length);
+        }}).loadClass("xwiki.Test.TestClass");
+        cls.getDeclaredField("string");
+        cls.getDeclaredField("number");
+*/
+        final BaseObject obj =
+            xdoc.newXObject(new DocumentReference("xwiki", "Test", "TestClass"), this.xcontext);
+        obj.set("string", "Hello World", this.xcontext);
+        obj.set("number", 123, this.xcontext);
+        this.store.saveXWikiDoc(xdoc, null);
+
+
+        c = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT obj FROM "
+          + "xwiki.Test.TestClass AS obj "
+          + "WHERE obj.id = 'xwiki:Test.TestClass.objects[0]'", "jpql").execute();
+        Assert.assertEquals(1, c.size());
+        cls = c.toArray()[0].getClass();
+        cls.getDeclaredField("string");
+        cls.getDeclaredField("number");
     }
 
     @Test
