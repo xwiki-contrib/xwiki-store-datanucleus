@@ -19,6 +19,8 @@
  */
 package org.xwiki.store.datanucleus.cassandra.internal;
 
+import java.util.Collection;
+
 import javax.inject.Named;
 import javax.jdo.JDOHelper;
 import javax.jdo.PersistenceManager;
@@ -29,6 +31,7 @@ import org.xwiki.component.annotation.Component;
 import org.xwiki.store.TransactionProvider;
 import org.xwiki.store.StartableTransactionRunnable;
 import org.xwiki.store.datanucleus.internal.DataNucleusClassLoader;
+import org.xwiki.store.objects.PersistableClass;
 
 /**
  * A provider for acquiring transaction based on DataNucleus running over Cassandra.
@@ -56,6 +59,17 @@ public class DataNucleusCassandraTransactionProvider implements TransactionProvi
 
         this.factory = JDOHelper.getPersistenceManagerFactory("Test");
         this.dnClassLoader = new DataNucleusClassLoader(this.getClass().getClassLoader());
+        initializePersistableClasses();
+    }
+
+    private void initializePersistableClasses()
+    {
+        final PersistenceManager pm = this.factory.getPersistenceManager();
+        final Collection<PersistableClass> pcs =
+            (Collection<PersistableClass>) pm.newQuery(PersistableClass.class).execute();
+        for (final PersistableClass pc : pcs) {
+            this.dnClassLoader.definePersistableClass(pc.getName(), pc.getBytes());
+        }
     }
 
     @Override
