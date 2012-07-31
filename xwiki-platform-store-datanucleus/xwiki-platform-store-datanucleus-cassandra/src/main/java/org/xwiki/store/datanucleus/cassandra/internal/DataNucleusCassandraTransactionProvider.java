@@ -28,7 +28,7 @@ import org.apache.cassandra.thrift.CassandraDaemon;
 import org.xwiki.component.annotation.Component;
 import org.xwiki.store.TransactionProvider;
 import org.xwiki.store.StartableTransactionRunnable;
-import org.xwiki.store.datanucleus.DataNucleusClassLoader;
+import org.xwiki.store.datanucleus.internal.DataNucleusClassLoader;
 
 /**
  * A provider for acquiring transaction based on DataNucleus running over Cassandra.

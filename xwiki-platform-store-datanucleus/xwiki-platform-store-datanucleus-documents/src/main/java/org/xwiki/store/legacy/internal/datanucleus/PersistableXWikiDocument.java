@@ -145,6 +145,9 @@ class PersistableXWikiDocument extends PersistableObject
     @NotPersistent
     private PersistableClass persistableClass;
 
+    @NotPersistent
+    private XWikiDocument original;
+
     PersistableXWikiDocument()
     {
         // do nothing.
@@ -158,11 +161,20 @@ class PersistableXWikiDocument extends PersistableObject
         this.language = toClone.getLanguage();
         this.defaultLanguage = toClone.getDefaultLanguage();
         this.translation = toClone.getTranslation();
-        this.date = toClone.getDate();
-        this.contentUpdateDate = toClone.getContentUpdateDate();
         this.creationDate = toClone.getCreationDate();
         this.author = toClone.getAuthor();
-        this.contentAuthor = toClone.getContentAuthor();
+
+        // This is a special case which is handled in XWikiHibernateStore#saveXWikiDoc()
+        final Date now = new Date();
+        this.date = now;
+        if (toClone.isContentDirty()) {
+            this.contentUpdateDate = now;
+            this.contentAuthor = toClone.getAuthor();
+        } else {
+            this.contentUpdateDate = toClone.getContentUpdateDate();
+            this.contentAuthor = toClone.getContentAuthor();
+        }
+
         this.creator = toClone.getCreator();
         this.space = toClone.getSpace();
         this.content = toClone.getContent();
@@ -179,6 +191,17 @@ class PersistableXWikiDocument extends PersistableObject
 
         this.wiki = toClone.getDatabase();
 
+        this.original = toClone;
+    }
+
+    /**
+     * This is needed because reentrence is not allowed in the store and some of the
+     * functions in XWikiDocument use the store, eg: getSyntaxId().
+     * After beginning a transaction, call this function to prep the persistable
+     * document for storage.
+     */
+    void convertObjects()
+    {
         final PersistableClassLoader pcl =
             (PersistableClassLoader) Thread.currentThread().getContextClassLoader();
 
@@ -187,14 +210,13 @@ class PersistableXWikiDocument extends PersistableObject
             this.xClassXML = toClone.getXClass().toXMLString();
             if (!this.xClassXML.equals(toClone.getXClassXML())) {
                 // make a new PersistableClass
-// TODO make this work without poisoning DN caches
-                //this.persistableClass = convertXClass(toClone.getXClass(), pcl);
+                this.persistableClass = convertXClass(toClone.getXClass(), pcl);
             }
         }
 
-        this.objects = (List) xObjectsToObjects(toClone.getXObjects(), pcl);
+        this.objects = (List) xObjectsToObjects(this.original.getXObjects(), pcl);
 
-        this.attachments = xAttachmentsToPersistableAttachments(toClone.getAttachmentList());
+        this.attachments = xAttachmentsToPersistableAttachments(this.original.getAttachmentList());
     }
 
     XWikiDocument toXWikiDocument(final XWikiDocument prototype)

@@ -36,6 +36,8 @@
     <!-- no second level cache. Need to use cassandra or other distributed cache -->
     <property name="datanucleus.cache.level2.type" value="none" />
 
+    <property name="datanucleus.classLoaderResolverName" value="UpdatingJDOClassLoaderResolver" />
+
     <property name="com.spidertracks.cassandra.serializer" 
               value="com.spidertracks.datanucleus.serialization.XStreamSerializer" />
 

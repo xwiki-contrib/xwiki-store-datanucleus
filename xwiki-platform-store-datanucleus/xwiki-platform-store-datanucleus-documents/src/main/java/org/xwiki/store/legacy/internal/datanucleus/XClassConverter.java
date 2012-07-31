@@ -67,12 +67,11 @@ final class XClassConverter
 
     private final PersistableClassLoader loader;
 
-    private final GroovyPersistableClassCompiler compiler;
+    private GroovyPersistableClassCompiler compiler;
 
     public XClassConverter(final PersistableClassLoader loader)
     {
         this.loader = loader;
-        this.compiler = new GroovyPersistableClassCompiler(loader);
     }
 
     /**
@@ -111,6 +110,9 @@ final class XClassConverter
         writeClass(classDocReference, propertyMap, sb);
         final String source = sb.toString();
         LOGGER.debug("Generated class: \n\n{}\n\n", source);
+        if (this.compiler == null) {
+            this.compiler = new GroovyPersistableClassCompiler(loader);
+        }
         final PersistableClass<XObject> pc = this.compiler.compile(source);
         return pc;
     }
@@ -240,10 +242,10 @@ final class XClassConverter
             writeTo.append("@Index\n"
                          + "@Persistent(defaultFetchGroup=\"true\")\n"
                          + "@Element(indexed=\"true\", dependent=\"true\")\n"
-                         + "private List<String>");
+                         + "public List<String>");
         } else {
             writeTo.append("@Index\n"
-                         + "private ");
+                         + "public ");
             if (propClass == StringProperty.class
                 || propClass == LargeStringProperty.class)
             {

@@ -17,18 +17,34 @@
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-package org.xwiki.store.objects;
+package org.xwiki.store.datanucleus.internal;
+
+import java.security.SecureClassLoader;
 
 /**
- * The PersistableClassLoader is designed to load java classes from a data store.
+ * A ClassLoader which refuses to load a given class,
+ * useful for forcing a child classloader to use a defined class.
  */
-public interface PersistableClassLoader
+public class BlockingClassLoader extends SecureClassLoader
 {
-    PersistableClass<?> loadPersistableClass(final String name) throws ClassNotFoundException;
+    private final String nameOfClassToBlock;
 
-    PersistableClass<?> definePersistableClass(final String name, final byte[] byteCode);
+    /**
+     * The Constructor.
+     *
+     * @param nameOfClassToBlock the name of the class to refuse to load.
+     */
+    public BlockingClassLoader(final ClassLoader parent, final String nameOfClassToBlock)
+    {
+        super(parent);
+        this.nameOfClassToBlock = nameOfClassToBlock;
+    }
 
-    ClassLoader asNativeLoader();
-
-    void onClassRedefinition(final Callback callThis);
+    public Class<?> loadClass(final String name) throws ClassNotFoundException
+    {
+        if (this.nameOfClassToBlock.equals(name)) {
+            throw new ClassNotFoundException("Loading of class [" + name + "] is prevented.");
+        }
+        return super.loadClass(name);
+    }
 }

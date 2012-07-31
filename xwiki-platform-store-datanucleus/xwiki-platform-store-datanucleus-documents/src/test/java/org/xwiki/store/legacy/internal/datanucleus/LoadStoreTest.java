@@ -62,6 +62,8 @@ import org.xwiki.store.attachments.adapter.internal.FilesystemDataNucleusAttachm
 
 public class LoadStoreTest
 {
+    private static XWikiContext XCONTEXT;
+
     private XWikiStoreInterface store;
 
     private XWikiContext xcontext;
@@ -87,6 +89,7 @@ public class LoadStoreTest
         }});
 
         final XWiki xwiki = new XWiki();
+        xwiki.setStore(Utils.getComponent(XWikiStoreInterface.class, "datanucleus"));
         xwiki.setConfig(new XWikiConfig() {
             final Map<String, String> props = (new HashMap<String, String>() {{
                 put("xwiki.store.main.hint", "datanucleus");
@@ -98,10 +101,10 @@ public class LoadStoreTest
             }
         });
 
-        final XWikiContext xcontext = new XWikiContext();
-        xcontext.setWiki(xwiki);
+        XCONTEXT = new XWikiContext();
+        XCONTEXT.setWiki(xwiki);
         final ExecutionContext context = new ExecutionContext();
-        context.setProperty("xwikicontext", xcontext);
+        context.setProperty("xwikicontext", XCONTEXT);
         final Execution exec = actc.getComponentManager().getInstance(Execution.class);
         exec.setContext(context);
         xwiki.setAttachmentStore((XWikiAttachmentStoreInterface)
@@ -298,5 +301,72 @@ public class LoadStoreTest
         byte[] content = attach.getContent(xc);
 
         Assert.assertTrue(new String(content, "UTF-8").equals(testContent));
+    }
+
+    @Test
+    public void testModifyClass() throws Exception
+    {
+        // Create class with 1 field
+        final DocumentReference ref = new DocumentReference("xwiki", "Main", "MyClass");
+        XWikiDocument testDoc = new XWikiDocument(ref);
+        testDoc.getXClass().addField("str1", new StringClass());
+        this.store.saveXWikiDoc(testDoc, null);
+
+        // Create object of this class.
+        testDoc = new XWikiDocument(ref);
+        this.store.loadXWikiDoc(testDoc, null);
+        BaseObject obj = testDoc.newXObject(ref, XCONTEXT);
+        obj.setStringValue("str1", "test");
+        this.store.saveXWikiDoc(testDoc, null);
+
+        // Get the object and make sure it's correct.
+        Collection queryResult = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT obj "
+          + "FROM xwiki.Main.MyClass AS obj "
+          + "WHERE obj.str1 = 'test'", "jpql").execute();
+        Assert.assertEquals(1, queryResult.size());
+        final Class class1 = queryResult.toArray()[0].getClass();
+        Assert.assertNotNull(class1.getDeclaredField("str1"));
+
+        // Add another field.
+        testDoc = new XWikiDocument(ref);
+        this.store.loadXWikiDoc(testDoc, null);
+        testDoc.getXClass().addField("str2", new StringClass());
+        this.store.saveXWikiDoc(testDoc, null);
+
+        // Create another object.
+        testDoc = new XWikiDocument(ref);
+        this.store.loadXWikiDoc(testDoc, null);
+        obj = testDoc.newXObject(ref, XCONTEXT);
+        obj.setStringValue("str1", "hello");
+        obj.setStringValue("str2", "world");
+        this.store.saveXWikiDoc(testDoc, null);
+
+        // Query for the object.
+        queryResult = (Collection) this.store.getQueryManager().createQuery(
+            "SELECT obj "
+          + "FROM xwiki.Main.MyClass AS obj "
+          + "WHERE obj.str1 = 'hello'", "jpql").execute();
+        Assert.assertEquals(1, queryResult.size());
+        final XObject nativeObj = (XObject) queryResult.toArray()[0];
+        final Class class2 = nativeObj.getClass();
+        Assert.assertTrue(class1 != class2);
+        Assert.assertNotNull(class2.getDeclaredField("str1"));
+        Assert.assertNotNull(class2.getDeclaredField("str2"));
+        Assert.assertEquals("hello", nativeObj.getFields().get("str1"));
+        Assert.assertEquals("world", nativeObj.getFields().get("str2"));
+
+        // Load the object.
+        testDoc = new XWikiDocument(ref);
+        this.store.loadXWikiDoc(testDoc, null);
+
+        obj = testDoc.getXObject(ref, 0);
+        Assert.assertEquals("test", obj.getStringValue("str1"));
+        Assert.assertEquals("", obj.getStringValue("str2"));
+        Assert.assertEquals("", obj.getStringValue("nosuchfield"));
+
+        obj = testDoc.getXObject(ref, 1);
+        Assert.assertEquals("hello", obj.getStringValue("str1"));
+        Assert.assertEquals("world", obj.getStringValue("str2"));
     }
 }

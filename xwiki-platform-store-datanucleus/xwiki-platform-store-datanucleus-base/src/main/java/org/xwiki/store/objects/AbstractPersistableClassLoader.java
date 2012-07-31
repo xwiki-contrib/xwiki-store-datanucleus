@@ -23,8 +23,11 @@ import java.io.IOException;
 import java.lang.ref.SoftReference;
 import java.security.SecureClassLoader;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.WeakHashMap;
 
 /**
  * The DataNucleusClassLoader is designed to load java classes from the data store.
@@ -35,6 +38,9 @@ public abstract class AbstractPersistableClassLoader
 {
     private final Map<String, SoftReference<PersistableClass>> classByName =
         new ConcurrentHashMap<String, SoftReference<PersistableClass>>();
+
+    private final Set<Callback> redefinitionCallbacks =
+        Collections.newSetFromMap(new WeakHashMap<Callback, Boolean>());
 
     /**
      * The Constructor.
@@ -49,18 +55,29 @@ public abstract class AbstractPersistableClassLoader
     public Class<?> loadClass(final String name) throws ClassNotFoundException
     {
         try {
-            return super.loadClass(name);
+            final Class out = super.loadClass(name);
+            if (!(out.getClassLoader() instanceof PersistableClassLoader)) {
+                return out;
+            }
         } catch (ClassNotFoundException e) {
-            return this.loadPersistableClass(name).getNativeClass();
+            // No class found, probably in the data store.
         }
+
+        return this.loadPersistableClass(name).getNativeClass();
     }
 
-    public PersistableClass<?> definePersistableClass(final String name, final byte[] byteCode)
+    public synchronized PersistableClass<?> definePersistableClass(final String name,
+                                                                   final byte[] byteCode)
     {
         final SoftReference<PersistableClass> pcRef = this.classByName.get(name);
         PersistableClass pc = (pcRef != null) ? pcRef.get() : null;
         if (pc != null && Arrays.equals(pc.getBytes(), byteCode)) {
             return pc;
+        } else if (pc != null) {
+            // It's being re-defined, call all of the callbacks.
+            for (final Callback callbk : this.redefinitionCallbacks) {
+                callbk.callback(new Object[] { name });
+            }
         }
         pc = new PersistableClass(name, byteCode);
         new SinglePersistableClassLoader(this, pc);
@@ -82,6 +99,11 @@ public abstract class AbstractPersistableClassLoader
     public ClassLoader asNativeLoader()
     {
         return this;
+    }
+
+    public synchronized void onClassRedefinition(final Callback callback)
+    {
+        this.redefinitionCallbacks.add(callback);
     }
 
     protected abstract PersistableClass getClassFromStorage(final String name)
@@ -130,6 +152,11 @@ public abstract class AbstractPersistableClassLoader
         public ClassLoader asNativeLoader()
         {
             return this;
+        }
+
+        public void onClassRedefinition(final Callback callback)
+        {
+            this.parent.onClassRedefinition(callback);
         }
     }
 }

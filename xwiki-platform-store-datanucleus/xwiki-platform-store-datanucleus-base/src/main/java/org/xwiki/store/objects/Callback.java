@@ -20,15 +20,9 @@
 package org.xwiki.store.objects;
 
 /**
- * The PersistableClassLoader is designed to load java classes from a data store.
+ * A callback for handling an event.
  */
-public interface PersistableClassLoader
+public interface Callback
 {
-    PersistableClass<?> loadPersistableClass(final String name) throws ClassNotFoundException;
-
-    PersistableClass<?> definePersistableClass(final String name, final byte[] byteCode);
-
-    ClassLoader asNativeLoader();
-
-    void onClassRedefinition(final Callback callThis);
+    void callback(final Object[] args);
 }
