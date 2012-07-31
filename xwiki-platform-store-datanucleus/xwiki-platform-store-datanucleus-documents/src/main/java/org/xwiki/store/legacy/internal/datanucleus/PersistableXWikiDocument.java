@@ -148,12 +148,12 @@ class PersistableXWikiDocument extends PersistableObject
     @NotPersistent
     private XWikiDocument original;
 
-    PersistableXWikiDocument()
+    private PersistableXWikiDocument()
     {
         // do nothing.
     }
 
-    void fromXWikiDocument(final XWikiDocument toClone)
+    PersistableXWikiDocument(final XWikiDocument toClone)
     {
         this.fullName = toClone.getFullName();
         this.name = toClone.getName();
@@ -206,11 +206,11 @@ class PersistableXWikiDocument extends PersistableObject
             (PersistableClassLoader) Thread.currentThread().getContextClassLoader();
 
         // Check if the class has been altered.
-        if (toClone.getXClass().getFieldList().size() > 0) {
-            this.xClassXML = toClone.getXClass().toXMLString();
-            if (!this.xClassXML.equals(toClone.getXClassXML())) {
+        if (this.original.getXClass().getFieldList().size() > 0) {
+            this.xClassXML = this.original.getXClass().toXMLString();
+            if (!this.xClassXML.equals(this.original.getXClassXML())) {
                 // make a new PersistableClass
-                this.persistableClass = convertXClass(toClone.getXClass(), pcl);
+                this.persistableClass = convertXClass(this.original.getXClass(), pcl);
             }
         }
 

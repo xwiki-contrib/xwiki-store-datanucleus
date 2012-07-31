@@ -157,20 +157,20 @@ public class LoadStoreTest
         this.store.saveXWikiDoc(xdoc, null);
 
         Collection c;
-/*
+
         c = (Collection) this.store.getQueryManager().createQuery(
             "SELECT cls.bytes FROM "
           + "org.xwiki.store.objects.PersistableClass AS cls "
           + "WHERE cls.name = 'xwiki.Test.TestClass'", "jpql").execute();
-*/
-        //Assert.assertEquals(1, c.size());
-        //final byte[] byteCode = (byte[]) c.toArray()[0];
-        Class cls;/* = (new ClassLoader() {{
+
+        Assert.assertEquals(1, c.size());
+        final byte[] byteCode = (byte[]) c.toArray()[0];
+        Class cls = (new ClassLoader() {{
             this.defineClass("xwiki.Test.TestClass", byteCode, 0, byteCode.length);
         }}).loadClass("xwiki.Test.TestClass");
         cls.getDeclaredField("string");
         cls.getDeclaredField("number");
-*/
+
         final BaseObject obj =
             xdoc.newXObject(new DocumentReference("xwiki", "Test", "TestClass"), this.xcontext);
         obj.set("string", "Hello World", this.xcontext);

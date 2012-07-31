@@ -63,8 +63,7 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
     {
         final String key = PersistableXWikiDocument.keyGen(doc);
 
-        final PersistableXWikiDocument pxd = new PersistableXWikiDocument();
-        pxd.fromXWikiDocument(doc);
+        final PersistableXWikiDocument pxd = new PersistableXWikiDocument(doc);
 
         final TransactionRunnable<PersistenceManager> storeRunnable =
             this.objStore.getStoreTransactionRunnable(key, pxd);
