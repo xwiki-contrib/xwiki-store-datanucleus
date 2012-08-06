@@ -34,7 +34,7 @@ public final class JavaClassNameDocumentReferenceSerializer
 {
     public String serialize(final EntityReference reference, final Object... parameters)
     {
-        return serializeRef(reference, null);
+        return serializeRef(reference, parameters);
     }
 
     public DocumentReference resolve(final String representation, final Object... parameters)

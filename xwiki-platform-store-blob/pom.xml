@@ -26,43 +26,25 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.xwiki.platform</groupId>
-    <artifactId>xwiki-platform-store-datanucleus</artifactId>
+    <artifactId>xwiki-platform-store</artifactId>
     <version>4.1-SNAPSHOT</version>
   </parent>
-  <artifactId>xwiki-platform-store-datanucleus-attachments</artifactId>
-  <name>XWiki Platform - Store - DataNucleus - Attachments</name>
-  <description>See: README</description>
+  <artifactId>xwiki-platform-store-blob</artifactId>
+  <name>XWiki Platform - Store - Blob - API</name>
+  <packaging>jar</packaging>
+  <description>Interfaces for storing large binary objects.</description>
   <dependencies>
+    <!-- @Role -->
+    <dependency>
+      <groupId>org.xwiki.commons</groupId>
+      <artifactId>xwiki-commons-component-api</artifactId>
+      <version>${commons.version}</version>
+    </dependency>
+
+    <!-- TransactionRunnable -->
     <dependency>
       <groupId>org.xwiki.platform</groupId>
       <artifactId>xwiki-platform-store-transaction</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-store-datanucleus-base</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-store-attachments</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-store-blob</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <!--
-      * needed only for the XWikiAttachment, XWikiAttachmentArchive, and DeletedAttachment classes
-      -->
-    <dependency>
-      <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-oldcore</artifactId>
       <version>${project.version}</version>
     </dependency>
   </dependencies>

@@ -6,7 +6,7 @@
 
   <parent>
     <groupId>org.xwiki.platform</groupId>
-    <artifactId>xwiki-platform-store</artifactId>
+    <artifactId>xwiki-platform-store-datanucleus</artifactId>
     <version>4.1-SNAPSHOT</version>
   </parent>
 
@@ -15,12 +15,6 @@
   <name>XWiki Platform - Store - DataNucleus - Documents</name>
   <description>DataNucleus based XWikiDocument and Model 1.0 store</description>
   <packaging>jar</packaging>
-
-  <properties>
-    <datanucleus.version>2.2.2</datanucleus.version>
-    <datanucleus.enhancer.version>2.1.3</datanucleus.enhancer.version>
-    <datanucleus.plugin.version>2.2.1</datanucleus.plugin.version>
-  </properties>
 
   <dependencies>
 
@@ -40,7 +34,7 @@
     <!-- Need to call an attachment content store when saving documents. -->
     <dependency>
       <groupId>org.xwiki.platform</groupId>
-      <artifactId>xwiki-platform-store-filesystem-datanucleus-attachments</artifactId>
+      <artifactId>xwiki-platform-store-datanucleus-attachments</artifactId>
       <version>${project.version}</version>
     </dependency>
 

@@ -28,7 +28,7 @@
   <modelVersion>4.0.0</modelVersion>
   <parent>
     <groupId>org.xwiki.platform</groupId>
-    <artifactId>xwiki-platform-store</artifactId>
+    <artifactId>xwiki-platform-store-datanucleus</artifactId>
     <version>4.1-SNAPSHOT</version>
   </parent>
   <artifactId>xwiki-platform-store-filesystem-datanucleus-attachments</artifactId>

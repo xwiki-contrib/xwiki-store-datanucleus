@@ -55,7 +55,7 @@ public class DataNucleusXWikiDocumentStore implements XWikiDocumentStore
     private TransactionProvider<PersistenceManager> provider;
 
     @Inject
-    @Named("file")
+    @Named("datanucleus")
     private AttachmentContentStore attachContentStore;
 
     public void saveXWikiDoc(final XWikiDocument doc, final XWikiContext context)

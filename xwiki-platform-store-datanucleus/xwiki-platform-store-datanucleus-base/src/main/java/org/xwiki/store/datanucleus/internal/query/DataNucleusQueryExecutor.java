@@ -71,10 +71,10 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
             final Class gc = gcl.parseClass(new GroovyCodeSource(fileURL));
             final Field[] fields = gc.getDeclaredFields();
             final Object go = gc.newInstance();
-            for (int i = 0; i < fields.length; i++) {
-                fields[i].setAccessible(true);
-                System.out.println("Storing: " + fields[i].getName() + "  " + fields[i].get(go));
-                this.namedQuerySyntaxByName.put(fields[i].getName(), "" + fields[i].get(go));
+            for (Field field : fields) {
+                field.setAccessible(true);
+                System.out.println("Storing: " + field.getName() + "  " + field.get(go));
+                this.namedQuerySyntaxByName.put(field.getName(), "" + field.get(go));
             }
         } catch (Exception e) {
             throw new InitializationException("Failed to load named queries", e);
@@ -154,9 +154,9 @@ public class DataNucleusQueryExecutor implements QueryExecutor, Initializable
     {
         // TODO: What about "jpql style" parameters which are not 0 indexed?
         int highest = Collections.max(parameters.keySet());
-        final List out = new ArrayList(highest + 1);
+        final List<Object> out = new ArrayList<Object>(highest + 1);
         for (int i = 0; i <= highest; i++) {
-            final Object param = parameters.get(Integer.valueOf(i));
+            final Object param = parameters.get(i);
             if (param != null) {
                 out.add(param);
             }

@@ -6,19 +6,13 @@
 
   <parent>
     <groupId>org.xwiki.platform</groupId>
-    <artifactId>xwiki-platform-store</artifactId>
+    <artifactId>xwiki-platform-store-datanucleus</artifactId>
     <version>4.1-SNAPSHOT</version>
   </parent>
 
   <groupId>org.xwiki.platform</groupId>
   <artifactId>xwiki-platform-store-datanucleus-cassandra</artifactId>
   <packaging>jar</packaging>
-
-  <properties>
-    <datanucleus.version>2.2.2</datanucleus.version>
-    <datanucleus.enhancer.version>2.1.3</datanucleus.enhancer.version>
-    <datanucleus.plugin.version>2.2.1</datanucleus.plugin.version>
-  </properties>
 
   <dependencies>
 
